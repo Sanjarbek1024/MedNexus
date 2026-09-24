@@ -1,11 +1,9 @@
-"""Chest anatomy segmentation: lung and heart masks, an anatomy check and the CTR estimate."""
+"""Chest anatomy segmentation: lung and heart masks, anatomy checks and the CTR estimate."""
 
 from collections.abc import Sequence
 
 import numpy as np
 import torch
-import torchxrayvision as xrv
-from scipy import ndimage
 
 from app.analyzers.base import (
     AnalysisContext,
@@ -19,13 +17,11 @@ from app.analyzers.base import (
     Scope,
     Stage,
 )
-from app.analyzers.chest_xray.common import PSPNET_URL, ensure_weights, fingerprint, to_batch
+from app.analyzers.chest_xray.common import area_fractions, load_pspnet, segment
 from app.imaging import StudyImage
 
-# PSPNet target name -> display label
-STRUCTURES = {"Right Lung": "Right lung", "Left Lung": "Left lung", "Heart": "Heart"}
-INPUT_SIZE = 512
 CTR_REFERENCE = 0.5
+D = CheckCategory.DISTRIBUTION
 
 
 class ChestAnatomySegmenter(Analyzer):
@@ -45,75 +41,70 @@ class ChestAnatomySegmenter(Analyzer):
         *,
         min_lung_fraction: float,
         min_heart_fraction: float,
+        max_cropped_fraction: float = 0.25,
     ) -> None:
         super().__init__(analyzer_id, scopes)
         self.min_lung_fraction = min_lung_fraction
         self.min_heart_fraction = min_heart_fraction
+        self.max_cropped_fraction = max_cropped_fraction
         self._versions: dict[str, str] = {}
 
     def load(self, device: torch.device) -> None:
-        path = ensure_weights(PSPNET_URL)
         self.device = device
-        self.model = xrv.baseline_models.chestx_det.PSPNet().to(device).eval()
-        self._channels = [self.model.targets.index(name) for name in STRUCTURES]
-        self._versions = {"chestx-det-pspnet": fingerprint(path)}
+        self.model, version = load_pspnet(device)
+        self._versions = {"chestx-det-pspnet": version}
 
     @property
     def versions(self) -> dict[str, str]:
         return self._versions
 
-    def segment(self, image: StudyImage) -> dict[str, np.ndarray]:
-        """Display label -> boolean mask (INPUT_SIZE², covering ``image.square_box``)."""
-        x = to_batch(image.square(INPUT_SIZE), self.device)
-        with torch.inference_mode():
-            logits = self.model(x)[0, self._channels]
-        probabilities = torch.sigmoid(logits).cpu().numpy()
-        return {
-            label: _largest_component(ndimage.gaussian_filter(p, sigma=2) > 0.5)
-            for label, p in zip(STRUCTURES.values(), probabilities)
-        }
-
     def analyze(self, image: StudyImage, context: AnalysisContext) -> AnalyzerResult:
-        masks = self.segment(image)
-        area = INPUT_SIZE * INPUT_SIZE
-        right, left, heart = (float(masks[label].sum()) / area for label in STRUCTURES.values())
+        masks = segment(self.model, image, self.device)
+        right, left, heart = area_fractions(masks)
         box = image.square_box
-
         result = AnalyzerResult(
             self.id,
+            checks=[self._field_of_view(image)],
             masks=[Mask(label, mask, box) for label, mask in masks.items() if mask.any()],
             metadata={"area_fraction": {"right_lung": right, "left_lung": left, "heart": heart}},
         )
-        lungs_found = min(right, left) >= self.min_lung_fraction
-        if not lungs_found:
+        if min(right, left) < self.min_lung_fraction:
             result.checks.append(SafetyCheck(
-                "anatomy", CheckCategory.DISTRIBUTION, "Chest anatomy", CheckStatus.FAIL,
+                "anatomy", D, "Chest anatomy", CheckStatus.FAIL,
                 "The lung fields could not be identified; this does not look like a frontal "
-                "chest radiograph.", blocking=True,
+                "chest radiograph.", blocking=True, code="anatomy_fail",
             ))
             return result
-
         if heart < self.min_heart_fraction:
             result.checks.append(SafetyCheck(
-                "anatomy", CheckCategory.DISTRIBUTION, "Chest anatomy", CheckStatus.WARN,
-                "Lung fields found, but the heart outline could not be identified.",
+                "anatomy", D, "Chest anatomy", CheckStatus.WARN,
+                "Lung fields found, but the heart outline could not be identified.", code="anatomy_heart_warn",
             ))
             return result
-
         result.checks.append(SafetyCheck(
-            "anatomy", CheckCategory.DISTRIBUTION, "Chest anatomy", CheckStatus.PASS,
-            "Both lung fields and the heart outline were identified.",
+            "anatomy", D, "Chest anatomy", CheckStatus.PASS,
+            "Both lung fields and the heart outline were identified.", code="anatomy_ok",
         ))
         result.measurements.append(_cardiothoracic_ratio(masks, context.view))
         return result
 
-
-def _largest_component(mask: np.ndarray) -> np.ndarray:
-    labels, count = ndimage.label(mask)
-    if count == 0:
-        return mask
-    sizes = ndimage.sum(mask, labels, index=range(1, count + 1))
-    return ndimage.binary_fill_holes(labels == int(np.argmax(sizes)) + 1)
+    def _field_of_view(self, image: StudyImage) -> SafetyCheck:
+        """The chest models read the central square only; say how much of the image that leaves out."""
+        box = image.square_box
+        cropped = 1.0 - box.width * box.height
+        percent = round(100 * cropped)
+        if cropped > self.max_cropped_fraction:
+            return SafetyCheck(
+                "field_of_view", CheckCategory.QUALITY, "Field of view", CheckStatus.WARN,
+                f"The models analyze the central square only; {percent}% of the image "
+                "(its edges) is outside the analyzed region.",
+                code="fov_warn", params={"percent": percent},
+            )
+        return SafetyCheck(
+            "field_of_view", CheckCategory.QUALITY, "Field of view", CheckStatus.PASS,
+            f"The analyzed central square covers {100 - percent}% of the image.",
+            code="fov_ok", params={"percent": 100 - percent},
+        )
 
 
 def _horizontal_extent(mask: np.ndarray) -> int:

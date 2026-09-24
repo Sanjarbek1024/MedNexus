@@ -48,13 +48,14 @@ class DicomConsistencyGate(Analyzer):
             checks.append(SafetyCheck(
                 "dicom_modality", M, "DICOM modality", CheckStatus.FAIL,
                 f"The DICOM header says {header.modality}, which does not match the selected "
-                "modality.", blocking=True,
+                "modality.", blocking=True, code="dicom_modality_fail", params={"value": header.modality},
             ))
         region = BODY_PARTS.get(header.body_part or "")
         if region and region != context.region:
             checks.append(SafetyCheck(
                 "dicom_region", M, "DICOM body part", CheckStatus.WARN,
                 f"The DICOM header says {header.body_part}; please confirm the selected region.",
+                code="dicom_region_warn", params={"value": header.body_part},
             ))
         view = VIEWS.get(header.view_position or "")
         if view and view != context.view:
@@ -62,6 +63,7 @@ class DicomConsistencyGate(Analyzer):
                 "dicom_view", M, "DICOM view", CheckStatus.WARN,
                 f"The DICOM header says {view} but {context.view} was selected. "
                 "Findings and measurements depend on the projection.",
+                code="dicom_view_warn", params={"value": view, "selected": context.view},
             ))
         if not checks:
             fields = [v for v in (header.modality, header.body_part, header.view_position) if v]
@@ -70,5 +72,8 @@ class DicomConsistencyGate(Analyzer):
                 if fields
                 else "The header has no modality, body part or view to compare."
             )
-            checks.append(SafetyCheck("dicom_header", M, "DICOM header", CheckStatus.PASS, detail))
+            checks.append(SafetyCheck(
+                "dicom_header", M, "DICOM header", CheckStatus.PASS, detail,
+                code="dicom_ok" if fields else "dicom_empty", params={"fields": " · ".join(fields)},
+            ))
         return AnalyzerResult(self.id, checks=checks)

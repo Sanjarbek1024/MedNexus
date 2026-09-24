@@ -15,7 +15,8 @@ from app.analyzers.base import (
     Scope,
     Stage,
 )
-from app.analyzers.chest_xray.common import ensure_weights, fingerprint, to_batch
+from app.analyzers.chest_xray.common import to_batch
+from app.analyzers.weights import ensure_weights, fingerprint
 from app.imaging import XRV_RANGE, StudyImage
 
 
@@ -65,16 +66,16 @@ class AutoencoderOODGate(Analyzer):
         error = self.reconstruction_error(image)
         measured = f"Reconstruction error {error:.3f} (rejection limit {self.max_error:.3f})."
         if error > self.max_error:
-            status = CheckStatus.FAIL
+            status, code = CheckStatus.FAIL, "ood_fail"
             detail = f"The image does not resemble a chest radiograph. {measured}"
         elif error > self.warn_error:
-            status = CheckStatus.WARN
+            status, code = CheckStatus.WARN, "ood_warn"
             detail = f"Atypical for a chest radiograph; interpret with extra care. {measured}"
         else:
-            status = CheckStatus.PASS
+            status, code = CheckStatus.PASS, "ood_ok"
             detail = f"Consistent with the chest X-rays the models were trained on. {measured}"
         check = SafetyCheck(
             "reconstruction", CheckCategory.DISTRIBUTION, "In-distribution", status, detail,
-            blocking=True,
+            blocking=True, code=code, params={"error": round(error, 3), "limit": self.max_error},
         )
         return AnalyzerResult(self.id, checks=[check], metadata={"reconstruction_error": error})

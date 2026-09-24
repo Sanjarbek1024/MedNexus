@@ -26,6 +26,7 @@ torch==2.14.0
 torchvision==0.29.0
 torchxrayvision==1.5.4
 grad-cam==1.5.7
+onnxruntime==1.30.0
 # Pinned to long-established releases: newer binaries are blocked by Windows Smart App Control.
 pandas==2.2.3
 scikit-learn==1.6.1

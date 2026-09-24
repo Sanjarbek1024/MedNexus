@@ -56,6 +56,7 @@ analyzers:
     params:
       min_lung_fraction: 0.05
       min_heart_fraction: 0.03
+      max_cropped_fraction: 0.25
 
   # Scores are operating-point normalized: 0.5 is each model's calibrated threshold.
   # Findings at or above `report` are shown; below `moderate` they are marked uncertain.
@@ -66,3 +67,22 @@ analyzers:
       models: [densenet121-res224-all, resnet50-res512-all]
       thresholds: {report: 0.50, moderate: 0.60, high: 0.70}
       explain_top_k: 3
+
+  # --- Extremity X-ray -------------------------------------------------------------------
+  # Refuses chest radiographs submitted as extremity studies (reuses the chest anatomy model).
+  - id: extremity_region_gate
+    class: app.analyzers.extremity_xray.region_gate:NotChestGate
+    applies_to: [{modality: xray, region: extremity}]
+    params:
+      max_lung_fraction: 0.05
+
+  # YOLOv7-p6 trained on GRAZPEDWRI-DX (pediatric wrist trauma radiographs), GPL-3.0.
+  # Scores are detection confidences. On the bundled samples: fractures 0.40-0.81, and one
+  # false positive (0.52) on a normal hand, which is why lower scores stay "uncertain".
+  - id: extremity_fracture
+    class: app.analyzers.extremity_xray.fracture:FractureDetector
+    applies_to: [{modality: xray, region: extremity, views: [PA, AP, Lateral]}]
+    params:
+      weights_url: https://github.com/mdciri/YOLOv7-Bone-Fracture-Detection/releases/download/trained-models/yolov7-p6-bonefracture.onnx
+      thresholds: {report: 0.40, moderate: 0.55, high: 0.70}
+

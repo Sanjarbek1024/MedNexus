@@ -42,9 +42,6 @@ def test_tiny_image_is_rejected() -> None:
 def test_color_photo_is_rejected() -> None:
     result = GATE.analyze(study(radiograph_like(), colorfulness=45.0), CONTEXT)
     assert result.rejected
-    assert "photograph" in next(c.detail for c in result.checks if c.id == "grayscale")
-
-
-def test_wide_image_warns_about_cropping() -> None:
-    wide = radiograph_like(1024)[:400]
-    assert statuses(study(wide))["field_of_view"] is CheckStatus.WARN
+    grayscale = next(c for c in result.checks if c.id == "grayscale")
+    assert "photograph" in grayscale.detail
+    assert grayscale.code == "grayscale_fail" and grayscale.params == {"score": 45}

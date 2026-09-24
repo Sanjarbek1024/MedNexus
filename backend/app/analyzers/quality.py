@@ -20,7 +20,7 @@ Q = CheckCategory.QUALITY
 
 
 class ImageQualityGate(Analyzer):
-    """Resolution, colour, signal, contrast, exposure and field-of-view checks."""
+    """Resolution, colour, signal, contrast and exposure checks."""
 
     label = "Image quality gate"
     stage = Stage.QUALITY
@@ -38,7 +38,6 @@ class ImageQualityGate(Analyzer):
         min_dynamic_range: float = 0.15,
         warn_dynamic_range: float = 0.30,
         exposure_limits: tuple[float, float] = (0.08, 0.92),
-        max_cropped_fraction: float = 0.25,
     ) -> None:
         super().__init__(analyzer_id, scopes)
         self.min_side_px = min_side_px
@@ -49,7 +48,6 @@ class ImageQualityGate(Analyzer):
         self.min_dynamic_range = min_dynamic_range
         self.warn_dynamic_range = warn_dynamic_range
         self.exposure_limits = exposure_limits
-        self.max_cropped_fraction = max_cropped_fraction
 
     def analyze(self, image: StudyImage, context: AnalysisContext) -> AnalyzerResult:
         unit = image.unit()[::2, ::2]  # statistics are stable at half resolution
@@ -61,86 +59,80 @@ class ImageQualityGate(Analyzer):
                 self._signal(unit),
                 self._contrast(unit),
                 self._exposure(unit),
-                self._field_of_view(image),
             ],
         )
 
     def _resolution(self, image: StudyImage) -> SafetyCheck:
         side = min(image.width, image.height)
         size = f"{image.width} × {image.height} px"
+        params = {"width": image.width, "height": image.height}
         if side < self.min_side_px:
             return SafetyCheck(
                 "resolution", Q, "Resolution", CheckStatus.FAIL,
                 f"{size} is below the {self.min_side_px} px minimum.", blocking=True,
+                code="resolution_fail", params=params | {"limit": self.min_side_px},
             )
         if side < self.recommended_side_px:
             return SafetyCheck(
                 "resolution", Q, "Resolution", CheckStatus.WARN,
-                f"{size} is below the recommended {self.recommended_side_px} px; "
-                "fine detail may be lost.",
+                f"{size} is below the recommended {self.recommended_side_px} px; fine detail may be lost.",
+                code="resolution_warn", params=params | {"limit": self.recommended_side_px},
             )
-        return SafetyCheck("resolution", Q, "Resolution", CheckStatus.PASS, size)
+        return SafetyCheck("resolution", Q, "Resolution", CheckStatus.PASS, size, code="resolution_ok", params=params)
 
     def _grayscale(self, image: StudyImage) -> SafetyCheck:
-        score = image.colorfulness
-        if score > self.max_colorfulness:
+        score = round(image.colorfulness)
+        if image.colorfulness > self.max_colorfulness:
             return SafetyCheck(
                 "grayscale", Q, "Grayscale", CheckStatus.FAIL,
-                f"Color image detected (colorfulness {score:.0f}); radiographs are grayscale. "
+                f"Color image detected (colorfulness {score}); radiographs are grayscale. "
                 "This looks like a photograph, not an X-ray.", blocking=True,
+                code="grayscale_fail", params={"score": score},
             )
-        if score > self.warn_colorfulness:
+        if image.colorfulness > self.warn_colorfulness:
             return SafetyCheck(
                 "grayscale", Q, "Grayscale", CheckStatus.WARN,
-                f"Slight color tint (colorfulness {score:.0f}); was the X-ray photographed?",
+                f"Slight color tint (colorfulness {score}); was the X-ray photographed?",
+                code="grayscale_warn", params={"score": score},
             )
-        return SafetyCheck("grayscale", Q, "Grayscale", CheckStatus.PASS, "Grayscale image.")
+        return SafetyCheck("grayscale", Q, "Grayscale", CheckStatus.PASS, "Grayscale image.", code="grayscale_ok")
 
     def _signal(self, unit: np.ndarray) -> SafetyCheck:
-        std = float(unit.std())
-        if std < self.min_std:
+        if float(unit.std()) < self.min_std:
             return SafetyCheck(
-                "signal", Q, "Signal", CheckStatus.FAIL,
-                "The image is blank or nearly uniform.", blocking=True,
+                "signal", Q, "Signal", CheckStatus.FAIL, "The image is blank or nearly uniform.",
+                blocking=True, code="signal_fail",
             )
-        return SafetyCheck("signal", Q, "Signal", CheckStatus.PASS, "Image content present.")
+        return SafetyCheck("signal", Q, "Signal", CheckStatus.PASS, "Image content present.", code="signal_ok")
 
     def _contrast(self, unit: np.ndarray) -> SafetyCheck:
         low, high = np.percentile(unit, [1, 99])
-        spread = float(high - low)
+        spread = round(float(high - low), 2)
         detail = f"Dynamic range {spread:.2f} (1st–99th percentile)."
+        params = {"range": spread}
         if spread < self.min_dynamic_range:
             return SafetyCheck(
-                "contrast", Q, "Contrast", CheckStatus.FAIL,
-                f"Very low contrast. {detail}", blocking=True,
+                "contrast", Q, "Contrast", CheckStatus.FAIL, f"Very low contrast. {detail}",
+                blocking=True, code="contrast_fail", params=params,
             )
         if spread < self.warn_dynamic_range:
-            return SafetyCheck("contrast", Q, "Contrast", CheckStatus.WARN, f"Low contrast. {detail}")
-        return SafetyCheck("contrast", Q, "Contrast", CheckStatus.PASS, detail)
+            return SafetyCheck(
+                "contrast", Q, "Contrast", CheckStatus.WARN, f"Low contrast. {detail}",
+                code="contrast_warn", params=params,
+            )
+        return SafetyCheck("contrast", Q, "Contrast", CheckStatus.PASS, detail, code="contrast_ok", params=params)
 
     def _exposure(self, unit: np.ndarray) -> SafetyCheck:
-        mean = float(unit.mean())
+        mean = round(float(unit.mean()), 2)
         dark, bright = self.exposure_limits
         if mean < dark or mean > bright:
             tone = "dark" if mean < dark else "bright"
             return SafetyCheck(
                 "exposure", Q, "Exposure", CheckStatus.WARN,
                 f"The image is very {tone} (mean intensity {mean:.2f}).",
+                code=f"exposure_{tone}", params={"mean": mean},
             )
         return SafetyCheck(
-            "exposure", Q, "Exposure", CheckStatus.PASS, f"Mean intensity {mean:.2f}."
-        )
-
-    def _field_of_view(self, image: StudyImage) -> SafetyCheck:
-        box = image.square_box
-        cropped = 1.0 - box.width * box.height
-        if cropped > self.max_cropped_fraction:
-            return SafetyCheck(
-                "field_of_view", Q, "Field of view", CheckStatus.WARN,
-                f"The models analyze the central square only; {cropped:.0%} of the image "
-                "(its edges) is outside the analyzed region.",
-            )
-        return SafetyCheck(
-            "field_of_view", Q, "Field of view", CheckStatus.PASS,
-            f"The analyzed central square covers {1 - cropped:.0%} of the image.",
+            "exposure", Q, "Exposure", CheckStatus.PASS, f"Mean intensity {mean:.2f}.",
+            code="exposure_ok", params={"mean": mean},
         )

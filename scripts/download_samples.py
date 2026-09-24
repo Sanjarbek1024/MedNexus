@@ -5,8 +5,9 @@ Run with the backend environment (it needs numpy, Pillow and pydicom):
     backend/.venv/Scripts/python scripts/download_samples.py      (Windows)
     backend/.venv/bin/python scripts/download_samples.py          (macOS / Linux)
 
-Sources and licenses are listed in samples/SOURCES.md. All images are CC0 / public domain
-Wikimedia Commons files, except one image from the public NIH ChestX-ray14 dataset.
+Sources and licenses are listed in samples/SOURCES.md: Wikimedia Commons files (CC0, public
+domain, CC BY and CC BY-SA, credited there) and one image from the public NIH ChestX-ray14
+dataset.
 """
 
 from __future__ import annotations
@@ -49,6 +50,9 @@ SAMPLES = [
         "chest_pa_pneumonia.jpg", "Chest radiograph in influensa and H influenzae, posteroanterior.jpg"
     ),
     Sample("chest_nih_00000001_000.png", NIH_SAMPLE),
+    Sample("wrist_buckle_fracture.jpg", "Radiology 1300570 Nevit.jpg", max_width=1400),
+    Sample("wrist_salter_harris_fracture.jpg", "Salter Harris 1 demo(1).jpg", max_width=1400),
+    Sample("wrist_greenstick_fracture.jpg", "Greenstick fracture, A-P view.jpg", max_width=1400),
     Sample("hand_xray.jpg", "X-ray of normal hand by dorsoplantar projection.jpg"),
     Sample("knee_xray.jpg", "X-ray of a normal knee by anteroposterior projection.jpg"),
     Sample("photo_kitten.jpg", "A curious kitten (Pixabay).jpg", max_width=1280),

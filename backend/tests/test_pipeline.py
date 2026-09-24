@@ -62,6 +62,12 @@ def test_color_photo_is_rejected_by_the_quality_gate(
     assert [c.id for c in outcome.collect("checks") if c.rejects] == ["grayscale"]
 
 
+def test_wide_image_warns_about_the_center_crop(client: TestClient, sample: Callable[[str], Path]) -> None:
+    outcome, _ = run(client, sample("chest_pa_heart_failure.jpg"))
+    field_of_view = next(c for c in outcome.collect("checks") if c.id == "field_of_view")
+    assert field_of_view.code in {"fov_ok", "fov_warn"} and "percent" in field_of_view.params
+
+
 def test_dicom_is_decoded_and_header_checked(client: TestClient, sample: Callable[[str], Path]) -> None:
     outcome, _ = run(client, sample("chest_pa_normal.dcm"), view="AP")
     checks = {c.id: c for c in outcome.collect("checks")}

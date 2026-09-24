@@ -26,7 +26,8 @@ from app.analyzers.base import (
     Scope,
     Stage,
 )
-from app.analyzers.chest_xray.common import ensure_weights, fingerprint, to_batch
+from app.analyzers.chest_xray.common import to_batch
+from app.analyzers.weights import ensure_weights, fingerprint
 from app.imaging import StudyImage
 
 HEATMAP_SIZE = 512
@@ -232,11 +233,12 @@ class PathologyEnsemble(Analyzer):
         if not conflicts:
             return SafetyCheck(
                 "model_agreement", CheckCategory.AGREEMENT, "Model agreement", CheckStatus.PASS,
-                "No confident disagreement between the models.",
+                "No confident disagreement between the models.", code="agreement_ok",
             )
         return SafetyCheck(
             "model_agreement", CheckCategory.AGREEMENT, "Model agreement", CheckStatus.WARN,
             "The models clearly disagree on " + "; ".join(conflicts) + ". Review these areas.",
+            code="agreement_warn", params={"items": "; ".join(conflicts)},
         )
 
     def _grad_cam(self, features: dict[str, torch.Tensor], labels: list[str]) -> list[np.ndarray]:

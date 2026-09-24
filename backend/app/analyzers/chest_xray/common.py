@@ -1,52 +1,59 @@
 """Shared helpers for the torchxrayvision-based analyzers."""
 
-import hashlib
-import logging
-import shutil
-import urllib.request
-from pathlib import Path
-from urllib.parse import urlparse
+from functools import cache
 
 import numpy as np
 import torch
 import torchxrayvision as xrv
+from scipy import ndimage
 
-logger = logging.getLogger(__name__)
+from app.analyzers.weights import ensure_weights, fingerprint
+from app.imaging import StudyImage
 
 # Not exposed by torchxrayvision; same URL as xrv.baseline_models.chestx_det.PSPNet.
 PSPNET_URL = (
     "https://github.com/mlmed/torchxrayvision/releases/download/v1/"
     "pspnet_chestxray_best_model_4.pth"
 )
-
-
-def ensure_weights(url: str) -> Path:
-    """Place a weight file in torchxrayvision's cache before the model is constructed.
-
-    Downloads to a temporary name first, so an interrupted download never leaves a corrupt
-    file where torchxrayvision would trust it (its own downloader writes in place).
-    """
-    target = Path(xrv.utils.get_cache_dir()) / Path(urlparse(url).path).name
-    if target.is_file():
-        return target
-    target.parent.mkdir(parents=True, exist_ok=True)
-    partial = target.with_name(target.name + ".part")
-    logger.info("Downloading %s", url)
-    with urllib.request.urlopen(url, timeout=60) as response, partial.open("wb") as out:
-        shutil.copyfileobj(response, out, length=1 << 20)
-    partial.replace(target)
-    return target
-
-
-def fingerprint(path: Path) -> str:
-    """Short content hash of a weight file, recorded in the audit log."""
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1 << 20), b""):
-            digest.update(chunk)
-    return digest.hexdigest()[:12]
+PSPNET_SIZE = 512
+# PSPNet target name -> display label
+STRUCTURES = {"Right Lung": "Right lung", "Left Lung": "Left lung", "Heart": "Heart"}
 
 
 def to_batch(square: np.ndarray, device: torch.device) -> torch.Tensor:
     """(1, S, S) numpy input → (1, 1, S, S) float tensor on ``device``."""
     return torch.from_numpy(square).unsqueeze(0).to(device)
+
+
+@cache
+def load_pspnet(device: torch.device) -> tuple[torch.nn.Module, str]:
+    """The ChestX-Det PSPNet, loaded once per device and shared by every analyzer that needs it."""
+    path = ensure_weights(PSPNET_URL)
+    return xrv.baseline_models.chestx_det.PSPNet().to(device).eval(), fingerprint(path)
+
+
+def segment(model: torch.nn.Module, image: StudyImage, device: torch.device) -> dict[str, np.ndarray]:
+    """Display label -> boolean mask (PSPNET_SIZE², covering ``image.square_box``)."""
+    channels = [model.targets.index(name) for name in STRUCTURES]
+    x = to_batch(image.square(PSPNET_SIZE), device)
+    with torch.inference_mode():
+        logits = model(x)[0, channels]
+    probabilities = torch.sigmoid(logits).cpu().numpy()
+    return {
+        label: _largest_component(ndimage.gaussian_filter(p, sigma=2) > 0.5)
+        for label, p in zip(STRUCTURES.values(), probabilities)
+    }
+
+
+def area_fractions(masks: dict[str, np.ndarray]) -> tuple[float, float, float]:
+    """(right lung, left lung, heart) as fractions of the analyzed square."""
+    area = PSPNET_SIZE * PSPNET_SIZE
+    return tuple(float(masks[label].sum()) / area for label in STRUCTURES.values())  # type: ignore[return-value]
+
+
+def _largest_component(mask: np.ndarray) -> np.ndarray:
+    labels, count = ndimage.label(mask)
+    if count == 0:
+        return mask
+    sizes = ndimage.sum(mask, labels, index=range(1, count + 1))
+    return ndimage.binary_fill_holes(labels == int(np.argmax(sizes)) + 1)
