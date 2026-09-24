@@ -59,9 +59,15 @@ class AnalyzerConfig(_Strict):
     params: dict[str, Any] = Field(default_factory=dict)
 
 
+class TriageConfig(_Strict):
+    # Findings that make a case "urgent" when an analyzer reports them at high confidence.
+    urgent_findings: list[str] = Field(default_factory=list)
+
+
 class RegistryConfig(_Strict):
     taxonomy: Taxonomy
     analyzers: list[AnalyzerConfig] = Field(default_factory=list)
+    triage: TriageConfig = Field(default_factory=TriageConfig)
 
     @model_validator(mode="after")
     def _check_references(self) -> RegistryConfig:
@@ -88,9 +94,12 @@ class RegistryConfig(_Strict):
 
 
 class AnalyzerRegistry:
-    def __init__(self, taxonomy: Taxonomy, analyzers: Sequence[Analyzer]) -> None:
+    def __init__(
+        self, taxonomy: Taxonomy, analyzers: Sequence[Analyzer], urgent_findings: Sequence[str] = ()
+    ) -> None:
         self.taxonomy = taxonomy
         self.analyzers = tuple(analyzers)
+        self.urgent_findings = frozenset(urgent_findings)
 
     @classmethod
     def from_yaml(cls, path: Path) -> AnalyzerRegistry:
@@ -98,7 +107,8 @@ class AnalyzerRegistry:
             config = RegistryConfig.model_validate(yaml.safe_load(path.read_text("utf-8")))
         except (yaml.YAMLError, ValueError) as exc:
             raise RegistryError(f"{path.name}: {exc}") from exc
-        return cls(config.taxonomy, [_build(entry) for entry in config.analyzers])
+        analyzers = [_build(entry) for entry in config.analyzers]
+        return cls(config.taxonomy, analyzers, config.triage.urgent_findings)
 
     def load(self, device: torch.device) -> None:
         for analyzer in self.analyzers:

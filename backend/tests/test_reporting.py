@@ -4,13 +4,14 @@ from types import SimpleNamespace
 
 from app.analyzers.base import Level
 from app.schemas import AnalysisResult, CaseStatus, FindingOut, ImageOut, Selection
+from app.services.llm import LLM
 from app.services.reporting import ReportWriter, build_prompt_payload
 
 
 def result_with(*names: str) -> AnalysisResult:
     return AnalysisResult(
         created_at=datetime.now(timezone.utc),
-        status=CaseStatus.DRAFT,
+        status=CaseStatus.AI_READY,
         selection=Selection(modality="xray", region="chest", view="PA", language="en"),
         image=ImageOut(url="data:", width=1, height=1, format="png", sha256="0" * 64),
         rejected=False, rejection_reasons=[], checks=[],
@@ -37,17 +38,17 @@ class FakeCompletions:
 
 
 def writer_returning(content: str | Exception) -> tuple[ReportWriter, FakeCompletions]:
-    writer = ReportWriter("test-key", "openai/gpt-oss-120b", 5)
+    llm = LLM("test-key", "openai/gpt-oss-120b", 5)
     completions = FakeCompletions(content)
-    writer._client = SimpleNamespace(chat=SimpleNamespace(completions=completions))
-    return writer, completions
+    llm._client = SimpleNamespace(chat=SimpleNamespace(completions=completions))
+    return ReportWriter(llm), completions
 
 
 def test_findings_the_models_did_not_produce_are_removed() -> None:
     writer, completions = writer_returning(json.dumps({
         "summary": "AI findings suggest consolidation.",
         "findings": [
-            {"name": "consolidation", "explanation": "Airspace filling."},
+            {"name": "consolidation", "local_name": "Konsolidatsiya", "explanation": "Airspace filling."},
             {"name": "Tuberculosis", "explanation": "Invented by the LLM."},
         ],
         "next_steps": ["Correlate clinically."],
@@ -58,6 +59,7 @@ def test_findings_the_models_did_not_produce_are_removed() -> None:
     assert outcome.report is not None
     assert outcome.report.removed_findings == ["Tuberculosis"]
     assert outcome.explanations == {"Consolidation": "Airspace filling."}
+    assert outcome.local_names == {"Consolidation": "Konsolidatsiya"}
     request = completions.calls[0]
     assert request["response_format"] == {"type": "json_object"}
     assert "English" in request["messages"][0]["content"]
@@ -82,5 +84,5 @@ def test_malformed_llm_output_is_rejected() -> None:
 
 
 def test_missing_api_key_disables_the_report() -> None:
-    outcome = ReportWriter(None, "openai/gpt-oss-120b", 5).write(result_with("Effusion"), "en")
+    outcome = ReportWriter(LLM(None, "openai/gpt-oss-120b", 5)).write(result_with("Effusion"), "en")
     assert outcome.report is None and "GROQ_API_KEY" in outcome.error

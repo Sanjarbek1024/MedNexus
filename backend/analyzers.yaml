@@ -21,6 +21,11 @@ taxonomy:
     - {id: spine, label: Spine}
     - {id: extremity, label: Extremity}
 
+# Worklist triage: a case is "urgent" when an analyzer reports one of these findings at high
+# confidence (an AI flag that orders the queue, not a diagnosis).
+triage:
+  urgent_findings: [Pneumothorax, Effusion, Consolidation, Pneumonia, Edema, Fracture]
+
 analyzers:
   - id: dicom_header
     class: app.analyzers.dicom:DicomConsistencyGate

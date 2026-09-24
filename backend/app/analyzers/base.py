@@ -75,8 +75,10 @@ class SafetyCheck:
     category: CheckCategory
     label: str
     status: CheckStatus
-    detail: str
+    detail: str  # English text for the API, the audit log and the LLM
     blocking: bool = False  # a failed blocking check rejects the image
+    code: str | None = None  # message key the UI translates, with ``params``
+    params: Mapping[str, str | float | int] = field(default_factory=dict)
 
     @property
     def rejects(self) -> bool:
@@ -84,12 +86,19 @@ class SafetyCheck:
 
 
 @dataclass(frozen=True)
+class Detection:
+    box: Box
+    score: float
+
+
+@dataclass(frozen=True)
 class Finding:
     name: str
-    score: float  # ensemble score in [0, 1]; a model output, not a calibrated probability
+    score: float  # model score in [0, 1]; a model output, not a calibrated probability
     level: Level
     model_scores: Mapping[str, float]
     models_agree: bool
+    boxes: tuple[Detection, ...] = ()  # localized detections, for detector models
 
 
 @dataclass(frozen=True)

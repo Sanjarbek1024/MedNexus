@@ -9,13 +9,13 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
-from groq import Groq
 from pydantic import BaseModel, Field, ValidationError
 
 from app.languages import LANGUAGES
 from app.schemas import AnalysisResult, CheckStatus, Report
+from app.services.llm import LLM, LLMUnavailableError
 
 logger = logging.getLogger(__name__)
 
@@ -37,13 +37,15 @@ Rules:
 
 Return only a JSON object of exactly this shape:
 {{"summary": "2-4 sentences",
-  "findings": [{{"name": "<exact name from the input>", "explanation": "1-2 sentences"}}],
+  "findings": [{{"name": "<exact name from the input>", "local_name": "<the name in the report language>",
+                "explanation": "1-2 sentences"}}],
   "next_steps": ["..."],
   "limitations": ["..."]}}"""
 
 
 class _LLMFinding(BaseModel):
     name: str
+    local_name: str | None = None
     explanation: str
 
 
@@ -59,47 +61,30 @@ class ReportOutcome:
     report: Report | None
     explanations: dict[str, str]
     error: str | None = None
+    local_names: dict[str, str] = field(default_factory=dict)
 
 
 class ReportWriter:
-    def __init__(self, api_key: str | None, model: str, timeout_s: float) -> None:
-        self.model = model
-        self._client = Groq(api_key=api_key, timeout=timeout_s, max_retries=1) if api_key else None
+    def __init__(self, llm: LLM) -> None:
+        self.llm = llm
 
     @property
-    def configured(self) -> bool:
-        return self._client is not None
+    def model(self) -> str:
+        return self.llm.model
 
     def write(self, result: AnalysisResult, language: str) -> ReportOutcome:
-        if self._client is None:
-            return ReportOutcome(None, {}, "GROQ_API_KEY is not configured")
         try:
-            raw = self._complete(build_prompt_payload(result), language)
-            return ground(_LLMReport.model_validate_json(raw), result, language, self.model)
+            system = SYSTEM_PROMPT.format(language=LANGUAGES[language].prompt_name)
+            raw = self.llm.json_completion(system, build_prompt_payload(result))
+            return ground(_LLMReport.model_validate_json(raw), result, language, self.llm.model)
+        except LLMUnavailableError as exc:
+            return ReportOutcome(None, {}, str(exc))
         except ValidationError:
             logger.warning("LLM returned JSON that does not match the report schema")
             return ReportOutcome(None, {}, "the language model returned an invalid report")
         except Exception as exc:  # network, auth, rate limit, timeout
             logger.warning("LLM report failed: %s", exc)
             return ReportOutcome(None, {}, f"the language model is unavailable ({type(exc).__name__})")
-
-    def _complete(self, payload: dict, language: str) -> str:
-        options = {"reasoning_effort": "low"} if self.model.startswith("openai/gpt-oss") else {}
-        completion = self._client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": SYSTEM_PROMPT.format(language=LANGUAGES[language].prompt_name),
-                },
-                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.2,
-            max_completion_tokens=2048,
-            **options,
-        )
-        return completion.choices[0].message.content or ""
 
 
 def build_prompt_payload(result: AnalysisResult) -> dict:
@@ -134,13 +119,16 @@ def ground(llm: _LLMReport, result: AnalysisResult, language: str, model: str) -
     """Keep only what the image models support."""
     known = {f.name.casefold(): f.name for f in result.findings}
     explanations: dict[str, str] = {}
+    local_names: dict[str, str] = {}
     removed: list[str] = []
     for item in llm.findings:
         name = known.get(item.name.strip().casefold())
         if name is None:
             removed.append(item.name)
-        else:
-            explanations[name] = item.explanation.strip()
+            continue
+        explanations[name] = item.explanation.strip()
+        if item.local_name and item.local_name.strip():
+            local_names[name] = item.local_name.strip()
     report = Report(
         language=language,
         model=model,
@@ -149,4 +137,4 @@ def ground(llm: _LLMReport, result: AnalysisResult, language: str, model: str) -
         limitations=[s.strip() for s in llm.limitations if s.strip()],
         removed_findings=removed,
     )
-    return ReportOutcome(report, explanations)
+    return ReportOutcome(report, explanations, local_names=local_names)

@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import io
 from dataclasses import dataclass, field
-from pathlib import PurePath
 
 import numpy as np
 import pydicom
@@ -14,8 +13,6 @@ from PIL import Image, ImageOps
 
 # torchxrayvision models expect pixels scaled to [-XRV_RANGE, XRV_RANGE].
 XRV_RANGE = 1024.0
-
-DICOM_SUFFIXES = {".dcm", ".dicom"}
 
 
 class ImageDecodeError(ValueError):
@@ -81,10 +78,14 @@ class StudyImage:
         return self._squares[size]
 
 
-def decode_upload(data: bytes, filename: str | None = None) -> StudyImage:
-    digest = hashlib.sha256(data).hexdigest()
-    suffix = PurePath(filename or "").suffix.lower()
-    if data[128:132] == b"DICM" or suffix in DICOM_SUFFIXES:
+def decode_upload(data: bytes, sha256: str | None = None) -> StudyImage:
+    """Decode a DICOM (by its DICM magic) or PNG/JPEG file.
+
+    ``sha256`` overrides the content hash, e.g. with the hash of the original upload when
+    decoding its sanitized copy.
+    """
+    digest = sha256 or hashlib.sha256(data).hexdigest()
+    if data[128:132] == b"DICM":
         return _decode_dicom(data, digest)
     return _decode_raster(data, digest)
 

@@ -1,4 +1,4 @@
-"""FastAPI application. All models are loaded once, at startup."""
+"""FastAPI application. Migrations run and all models load once, at startup."""
 
 import asyncio
 import logging
@@ -14,8 +14,11 @@ from app import __version__
 from app.analyzers.registry import AnalyzerRegistry
 from app.api import router
 from app.config import get_settings
-from app.db.store import CaseStore
+from app.db.session import run_migrations
+from app.security import CSRF_HEADER, SecurityHeadersMiddleware
 from app.services.analysis import AnalysisService
+from app.services.jobs import AnalysisQueue
+from app.services.llm import LLM
 from app.services.pipeline import AnalysisPipeline
 from app.services.reporting import ReportWriter
 
@@ -32,26 +35,28 @@ def select_device(preference: str) -> torch.device:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
+    await asyncio.to_thread(run_migrations)
     registry = AnalyzerRegistry.from_yaml(settings.registry_path)
     device = select_device(settings.device)
 
     started = time.perf_counter()
     await asyncio.to_thread(registry.load, device)
     logger.info(
-        "Loaded %d analyzers on %s in %.1fs",
-        len(registry.analyzers),
-        device,
-        time.perf_counter() - started,
+        "Loaded %d analyzers on %s in %.1fs", len(registry.analyzers), device, time.perf_counter() - started
     )
+
+    llm = LLM(settings.groq_api_key, settings.groq_model, settings.groq_timeout_s)
+    service = AnalysisService(AnalysisPipeline(registry), ReportWriter(llm), settings)
+    queue = AnalysisQueue(service)
+    queue.start()
 
     app.state.registry = registry
     app.state.device = device
-    app.state.service = AnalysisService(
-        AnalysisPipeline(registry),
-        ReportWriter(settings.groq_api_key, settings.groq_model, settings.groq_timeout_s),
-        CaseStore(settings.data_dir),
-    )
+    app.state.llm = llm
+    app.state.service = service
+    app.state.queue = queue
     yield
+    await asyncio.to_thread(queue.stop)
 
 
 def create_app() -> FastAPI:
@@ -65,11 +70,13 @@ def create_app() -> FastAPI:
         ),
         lifespan=lifespan,
     )
+    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+        allow_headers=["Content-Type", "Accept", CSRF_HEADER],
     )
     app.include_router(router)
     return app

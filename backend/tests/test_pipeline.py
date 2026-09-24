@@ -13,7 +13,7 @@ from app.services.pipeline import AnalysisPipeline, PipelineOutcome
 def run(client: TestClient, path: Path, view: str = "PA") -> tuple[PipelineOutcome, list[Stage]]:
     pipeline = AnalysisPipeline(client.app.state.registry)
     stages: list[Stage] = []
-    image = decode_upload(path.read_bytes(), path.name)
+    image = decode_upload(path.read_bytes())
     return pipeline.run(image, "xray", "chest", view, stages.append), stages
 
 
