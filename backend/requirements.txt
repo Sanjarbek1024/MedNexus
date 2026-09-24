@@ -1,0 +1,27 @@
+# API
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+python-multipart==0.0.32
+pydantic==2.13.5
+pydantic-settings==2.15.0
+sqlmodel==0.0.47
+pyyaml==6.0.3
+groq==1.7.0
+
+# Imaging
+numpy==2.4.6
+pillow==12.3.0
+scikit-image==0.26.0
+pydicom==3.0.2
+pylibjpeg==2.1.0
+pylibjpeg-libjpeg==2.4.0
+pylibjpeg-openjpeg==2.6.0
+
+# ML (CPU wheels work everywhere; a CUDA build of torch is used automatically if installed)
+torch==2.14.0
+torchvision==0.29.0
+torchxrayvision==1.5.4
+grad-cam==1.5.7
+# Pinned to long-established releases: newer binaries are blocked by Windows Smart App Control.
+pandas==2.2.3
+scikit-learn==1.6.1

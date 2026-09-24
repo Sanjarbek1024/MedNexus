@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Runtime data (SQLite database, stored cases)
+backend/data/
+
+# Frontend
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# Sample images are fetched by scripts/download_samples.py
+samples/*
+!samples/SOURCES.md
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,24 @@
+# Analyzer registry.
+#
+# `taxonomy` lists every modality, body region and view the UI offers.
+# `analyzers` lists the plugins. Each entry names a Python class (module:Class), the
+# studies it applies to (omitted keys match anything) and its constructor params.
+# For a study, every analyzer that applies runs; quality gates run first, and a failed
+# blocking check stops the pipeline. A combination is "supported" when at least one
+# findings-producing analyzer applies to it; everything else shows as "Coming soon".
+#
+# Adding a model = one Analyzer subclass + one entry below. No frontend changes.
+
+taxonomy:
+  modalities:
+    - {id: xray, label: X-ray, views: [PA, AP, Lateral]}
+    - {id: ct, label: CT, views: [Axial, Coronal, Sagittal]}
+    - {id: mri, label: MRI, views: [Axial, Coronal, Sagittal]}
+  regions:
+    - {id: chest, label: Chest}
+    - {id: head, label: Head}
+    - {id: abdomen, label: Abdomen}
+    - {id: spine, label: Spine}
+    - {id: extremity, label: Extremity}
+
+analyzers: []
