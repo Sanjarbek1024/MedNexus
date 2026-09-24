@@ -21,4 +21,43 @@ taxonomy:
     - {id: spine, label: Spine}
     - {id: extremity, label: Extremity}
 
-analyzers: []
+analyzers:
+  - id: dicom_header
+    class: app.analyzers.dicom:DicomConsistencyGate
+    applies_to: [{}]
+
+  - id: image_quality
+    class: app.analyzers.quality:ImageQualityGate
+    applies_to: [{modality: xray}]
+    params:
+      min_side_px: 256
+      recommended_side_px: 512
+
+  # Reconstruction error on the bundled samples: chest X-rays 0.034-0.045,
+  # hand X-ray 0.068, colour photo 0.104.
+  - id: chest_xray_ood
+    class: app.analyzers.chest_xray.ood:AutoencoderOODGate
+    applies_to: [{modality: xray, region: chest, views: [PA, AP]}]
+    params:
+      weights: 101-elastic
+      warn_error: 0.050
+      max_error: 0.060
+
+  # Fraction of the analyzed square covered by each lung / the heart. Chest X-rays: lungs
+  # 0.16-0.31 each, heart 0.10-0.21; non-chest images: ~0.
+  - id: chest_xray_anatomy
+    class: app.analyzers.chest_xray.anatomy:ChestAnatomySegmenter
+    applies_to: [{modality: xray, region: chest, views: [PA, AP]}]
+    params:
+      min_lung_fraction: 0.05
+      min_heart_fraction: 0.03
+
+  # Scores are operating-point normalized: 0.5 is each model's calibrated threshold.
+  # Findings at or above `report` are shown; below `moderate` they are marked uncertain.
+  - id: chest_xray_pathology
+    class: app.analyzers.chest_xray.pathology:PathologyEnsemble
+    applies_to: [{modality: xray, region: chest, views: [PA, AP]}]
+    params:
+      models: [densenet121-res224-all, resnet50-res512-all]
+      thresholds: {report: 0.50, moderate: 0.60, high: 0.70}
+      explain_top_k: 3

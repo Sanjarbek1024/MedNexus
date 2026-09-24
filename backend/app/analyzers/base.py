@@ -19,7 +19,7 @@ from typing import Any, ClassVar
 import numpy as np
 import torch
 
-from app.imaging import StudyImage
+from app.imaging import Box, StudyImage
 
 
 class Stage(StrEnum):
@@ -93,16 +93,6 @@ class Finding:
 
 
 @dataclass(frozen=True)
-class Box:
-    """Axis-aligned box in original-image coordinates, normalized to [0, 1]."""
-
-    x: float
-    y: float
-    width: float
-    height: float
-
-
-@dataclass(frozen=True)
 class Heatmap:
     finding: str
     values: np.ndarray  # float32 in [0, 1], covering `box`
@@ -121,6 +111,7 @@ class Measurement:
     id: str
     label: str
     value: float
+    reference: float | None  # conventional cut-off, shown for context
     detail: str
 
 

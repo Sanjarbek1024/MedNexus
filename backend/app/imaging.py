@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import io
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import PurePath
 
 import numpy as np
@@ -32,12 +32,23 @@ class DicomHeader:
 
 
 @dataclass(frozen=True)
+class Box:
+    """Axis-aligned box in original-image coordinates, normalized to [0, 1]."""
+
+    x: float
+    y: float
+    width: float
+    height: float
+
+
+@dataclass(frozen=True, eq=False)
 class StudyImage:
     pixels: np.ndarray  # float32 (H, W) on the torchxrayvision scale [-1024, 1024]
     colorfulness: float  # Hasler–Süsstrunk colorfulness of the original; 0 for grayscale
     format: str  # "dicom" | "png" | "jpeg"
     sha256: str
     dicom: DicomHeader | None = None
+    _squares: dict[int, np.ndarray] = field(default_factory=dict, init=False, repr=False)
 
     @property
     def height(self) -> int:
@@ -50,6 +61,24 @@ class StudyImage:
     def unit(self) -> np.ndarray:
         """Pixels rescaled to [0, 1]."""
         return (self.pixels + XRV_RANGE) / (2 * XRV_RANGE)
+
+    @property
+    def square_box(self) -> Box:
+        """The central square that ``square()`` covers (same arithmetic as XRayCenterCrop)."""
+        size = min(self.height, self.width)
+        x0 = self.width // 2 - size // 2
+        y0 = self.height // 2 - size // 2
+        return Box(x0 / self.width, y0 / self.height, size / self.width, size / self.height)
+
+    def square(self, size: int) -> np.ndarray:
+        """(1, size, size) model input: torchxrayvision's reference center crop and resize.
+
+        Cached per size, because several analyzers share the same input resolution.
+        """
+        if size not in self._squares:
+            cropped = xrv.datasets.XRayCenterCrop()(self.pixels[None, ...])
+            self._squares[size] = xrv.datasets.XRayResizer(size)(cropped)
+        return self._squares[size]
 
 
 def decode_upload(data: bytes, filename: str | None = None) -> StudyImage:
