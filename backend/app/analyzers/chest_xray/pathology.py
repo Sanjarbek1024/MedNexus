@@ -30,6 +30,7 @@ from app.analyzers.chest_xray.common import ensure_weights, fingerprint, to_batc
 from app.imaging import StudyImage
 
 HEATMAP_SIZE = 512
+MODEL_LABELS = {"densenet121-res224-all": "DenseNet-121", "resnet50-res512-all": "ResNet-50"}
 
 
 class _DenseNetHead(nn.Module):
@@ -169,9 +170,8 @@ class PathologyEnsemble(Analyzer):
             label: float(np.mean([raw[m.weights][label] for m in self._members]))
             for label in self.shared
         }
-        disagreements = [label for label in self.shared if not self._agree(raw, label)]
         findings = [
-            self._finding(label, ensemble[label], raw, label not in disagreements)
+            self._finding(label, ensemble[label], raw, self._agree(raw, label))
             for label in sorted(self.shared, key=ensemble.__getitem__, reverse=True)
             if ensemble[label] >= self.report_threshold
         ]
@@ -184,7 +184,7 @@ class PathologyEnsemble(Analyzer):
         ]
         return AnalyzerResult(
             self.id,
-            checks=[self._agreement_check(disagreements, ensemble)],
+            checks=[self._agreement_check(raw, ensemble)],
             findings=findings,
             scores=ensemble,
             raw_scores=raw,
@@ -220,19 +220,23 @@ class PathologyEnsemble(Analyzer):
             models_agree=agree,
         )
 
-    def _agreement_check(self, disagreements: list[str], ensemble: dict[str, float]) -> SafetyCheck:
-        if not disagreements:
+    def _agreement_check(self, raw: dict[str, dict[str, float]], ensemble: dict[str, float]) -> SafetyCheck:
+        """Warns when one model is confident (>= moderate) while another is negative (< report)."""
+        conflicts = []
+        for label in self.shared:
+            scores = {m.weights: raw[m.weights][label] for m in self._members}
+            if max(scores.values()) >= self.moderate_threshold and min(scores.values()) < self.report_threshold:
+                versus = " vs ".join(f"{MODEL_LABELS.get(w, w)} {s:.2f}" for w, s in scores.items())
+                status = "reported as uncertain" if ensemble[label] >= self.report_threshold else "not reported"
+                conflicts.append(f"{label} ({versus}; {status})")
+        if not conflicts:
             return SafetyCheck(
                 "model_agreement", CheckCategory.AGREEMENT, "Model agreement", CheckStatus.PASS,
-                f"Both models agree on all {len(ensemble)} pathologies at the reporting threshold.",
+                "No confident disagreement between the models.",
             )
-        described = [
-            f"{label} ({'reported as uncertain' if ensemble[label] >= self.report_threshold else 'below reporting threshold'})"
-            for label in disagreements
-        ]
         return SafetyCheck(
             "model_agreement", CheckCategory.AGREEMENT, "Model agreement", CheckStatus.WARN,
-            "The models disagree on " + "; ".join(described) + ".",
+            "The models clearly disagree on " + "; ".join(conflicts) + ". Review these areas.",
         )
 
     def _grad_cam(self, features: dict[str, torch.Tensor], labels: list[str]) -> list[np.ndarray]:

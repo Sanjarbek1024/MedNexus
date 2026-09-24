@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --color-canvas: #f7faf8;
+  --color-ink: #0f1f1a;
+  --shadow-soft: 0 1px 2px rgb(15 31 26 / 0.04), 0 10px 30px -12px rgb(15 31 26 / 0.12);
+  --shadow-glow: 0 12px 36px -8px rgb(16 185 129 / 0.55);
+  --animate-dash: dash 1.4s linear infinite;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: -32;
+  }
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@layer base {
+  html {
+    scrollbar-gutter: stable;
+  }
+  body {
+    @apply bg-canvas text-ink antialiased;
+    background-image:
+      radial-gradient(60rem 30rem at 10% -10%, rgb(16 185 129 / 0.1), transparent 60%),
+      radial-gradient(50rem 30rem at 110% 10%, rgb(20 184 166 / 0.08), transparent 60%);
+    background-attachment: fixed;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-emerald-500;
+  }
+  input[type="range"] {
+    @apply accent-emerald-500;
+  }
+}
+
+@utility card {
+  @apply rounded-2xl border border-white/70 bg-white/80 shadow-soft backdrop-blur-xl;
+}
+
+@utility chip {
+  @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap;
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@utility btn-primary {
+  @apply btn bg-emerald-500 text-white shadow-glow hover:bg-emerald-600 active:bg-emerald-700;
+}
+
+@utility btn-ghost {
+  @apply btn border border-slate-200 bg-white/90 text-slate-700 hover:border-slate-300 hover:bg-white;
+}
+
+@utility field {
+  @apply w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-ink placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 focus:outline-none;
+}
+
+@utility eyebrow {
+  @apply text-[11px] font-bold tracking-[0.14em] text-slate-400 uppercase;
+}
+
+@media print {
+  body {
+    background: white;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .card {
+    box-shadow: none;
+    border-color: #e2e8f0;
+    break-inside: avoid;
+  }
+}
