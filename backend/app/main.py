@@ -14,6 +14,10 @@ from app import __version__
 from app.analyzers.registry import AnalyzerRegistry
 from app.api import router
 from app.config import get_settings
+from app.db.store import CaseStore
+from app.services.analysis import AnalysisService
+from app.services.pipeline import AnalysisPipeline
+from app.services.reporting import ReportWriter
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("mednexus")
@@ -42,6 +46,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     app.state.registry = registry
     app.state.device = device
+    app.state.service = AnalysisService(
+        AnalysisPipeline(registry),
+        ReportWriter(settings.groq_api_key, settings.groq_model, settings.groq_timeout_s),
+        CaseStore(settings.data_dir),
+    )
     yield
 
 
