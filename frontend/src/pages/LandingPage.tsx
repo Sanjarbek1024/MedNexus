@@ -198,7 +198,7 @@ export function LandingPage() {
   const cta = user ? { href: "/dashboard", label: t("landing.openApp") } : { href: "/signup", label: t("landing.start") };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen overflow-x-clip">
       <header className="sticky top-0 z-40 border-b border-white/70 bg-canvas/75 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-6">
           <Link href="/" className="flex items-center gap-2.5">
@@ -219,7 +219,7 @@ export function LandingPage() {
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-6xl items-center gap-14 px-4 pt-14 pb-20 sm:px-6 lg:grid-cols-[1.1fr_1fr]">
+      <section className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-14 px-4 pt-14 pb-20 sm:px-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
           <span className="chip bg-emerald-50 py-1 text-emerald-700 ring-1 ring-emerald-200">
             <Sparkles className="size-3.5" /> {t("landing.badge")}

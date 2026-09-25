@@ -183,7 +183,7 @@ function CaseView({ initial }: { initial: AnalysisResult }) {
         </div>
       </div>
 
-      <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+      <div className="mt-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
         <div className="space-y-6 lg:sticky lg:top-20">
           <ImageViewer result={result} selected={selected} onSelect={setSelected} shortcuts />
         </div>
@@ -209,12 +209,12 @@ function CaseView({ initial }: { initial: AnalysisResult }) {
             initial={{ y: 40, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3, type: "spring", bounce: 0.25 }}
-            className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/80 bg-white/85 p-1.5 pl-4 shadow-xl shadow-slate-900/10 backdrop-blur-xl"
+            className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/80 bg-white/85 p-1.5 shadow-xl sm:pl-4 shadow-slate-900/10 backdrop-blur-xl"
           >
             <span className="chip mr-1 hidden bg-amber-50 text-amber-700 ring-1 ring-amber-200 sm:inline-flex">{t("status.draft")}</span>
             <button type="button" className="btn-primary rounded-full" onClick={() => setEditor("confirm")}><ThumbsUp className="size-4" /> {t("review.confirm")}</button>
-            <button type="button" className="btn-ghost rounded-full" onClick={() => setEditor("edit")}><PencilLine className="size-4" /> {t("review.edit")}</button>
-            <button type="button" className="btn-ghost rounded-full text-rose-600 hover:border-rose-200" onClick={() => setEditor("reject")}><ThumbsDown className="size-4" /> {t("review.reject")}</button>
+            <button type="button" className="btn-ghost rounded-full" onClick={() => setEditor("edit")} title={t("review.edit")}><PencilLine className="size-4" /> <span className="hidden sm:inline">{t("review.edit")}</span></button>
+            <button type="button" className="btn-ghost rounded-full text-rose-600 hover:border-rose-200" onClick={() => setEditor("reject")} title={t("review.reject")}><ThumbsDown className="size-4" /> <span className="hidden sm:inline">{t("review.reject")}</span></button>
           </motion.div>
         </div>
       )}
@@ -254,7 +254,7 @@ export function CasePage({ caseId }: { caseId: number }) {
   if (error) return <div className="mx-auto max-w-xl px-6 pt-24 text-center text-slate-600">{error}</div>;
   if (!result) {
     return (
-      <div className="mx-auto grid max-w-7xl gap-6 px-4 pt-10 sm:px-6 lg:grid-cols-[1.2fr_1fr]">
+      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-4 pt-10 sm:px-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
         <Skeleton className="h-[34rem]" />
         <div className="space-y-4"><Skeleton className="h-40" /><Skeleton className="h-40" /><Skeleton className="h-60" /></div>
       </div>

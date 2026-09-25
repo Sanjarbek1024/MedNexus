@@ -1,4 +1,4 @@
-import { useEffect, useState, type AnchorHTMLAttributes, type MouseEvent } from "react";
+import { useMemo, useSyncExternalStore, type AnchorHTMLAttributes, type MouseEvent } from "react";
 
 const CHANGE = "mednexus:navigate";
 
@@ -14,19 +14,24 @@ export interface Location {
   query: URLSearchParams;
 }
 
+function subscribe(callback: () => void): () => void {
+  window.addEventListener("popstate", callback);
+  window.addEventListener(CHANGE, callback);
+  return () => {
+    window.removeEventListener("popstate", callback);
+    window.removeEventListener(CHANGE, callback);
+  };
+}
+
+const currentHref = () => window.location.pathname + window.location.search;
+
+// An external store, so a navigation fired by a child's effect before this hook subscribes is not missed.
 export function useLocation(): Location {
-  const read = () => ({ path: window.location.pathname, query: new URLSearchParams(window.location.search) });
-  const [location, setLocation] = useState<Location>(read);
-  useEffect(() => {
-    const update = () => setLocation(read());
-    window.addEventListener("popstate", update);
-    window.addEventListener(CHANGE, update);
-    return () => {
-      window.removeEventListener("popstate", update);
-      window.removeEventListener(CHANGE, update);
-    };
-  }, []);
-  return location;
+  const href = useSyncExternalStore(subscribe, currentHref);
+  return useMemo(() => {
+    const url = new URL(href, window.location.origin);
+    return { path: url.pathname, query: url.searchParams };
+  }, [href]);
 }
 
 export function Link({ href, onClick, ...props }: AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) {

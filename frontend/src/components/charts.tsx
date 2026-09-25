@@ -42,8 +42,8 @@ export function GroupedBars({ categories, series, height = 180 }: {
   const [tip, setTip] = useState<Tip | null>(null);
   const width = 560;
   const pad = { top: 12, bottom: 26, left: 28, right: 8 };
-  const max = Math.max(1, ...series.flatMap((s) => s.values));
-  const ticks = [0, Math.ceil(max / 2), Math.ceil(max)];
+  const top = 2 * Math.max(1, Math.ceil(Math.max(...series.flatMap((s) => s.values)) / 2));
+  const ticks = [0, top / 2, top];
   const plotH = height - pad.top - pad.bottom;
   const groupW = (width - pad.left - pad.right) / categories.length;
   const barW = Math.min(18, (groupW - 12) / series.length - 2);

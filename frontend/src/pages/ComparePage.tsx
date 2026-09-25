@@ -116,7 +116,7 @@ export function ComparePage({ query }: { query: URLSearchParams }) {
       )}
 
       {error && <div role="alert" className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-rose-200">{error}</div>}
-      {loading && !comparison && <div className="grid gap-6 lg:grid-cols-2"><Skeleton className="h-96" /><Skeleton className="h-96" /></div>}
+      {loading && !comparison && <div className="grid grid-cols-1 gap-6 lg:grid-cols-2"><Skeleton className="h-96" /><Skeleton className="h-96" /></div>}
 
       {comparison && (
         <>

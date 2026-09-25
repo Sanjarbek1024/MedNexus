@@ -88,7 +88,14 @@ def chat_stream(
 def interval_summary(llm: LLM, deltas: Sequence[Delta], interval_days: float, language: str) -> str:
     payload = {
         "interval_days": round(interval_days, 1),
-        "changes": [d.model_dump() for d in deltas if d.trend != "stable" or d.reported],
+        "changes": [
+            {
+                **d.model_dump(),
+                **{k: round(getattr(d, k), 2) for k in ("prior", "current", "change") if getattr(d, k) is not None},
+            }
+            for d in deltas
+            if d.trend != "stable" or d.reported
+        ],
     }
     raw = llm.json_completion(
         INTERVAL_SYSTEM_PROMPT.format(language=LANGUAGES[language].prompt_name), payload, 800

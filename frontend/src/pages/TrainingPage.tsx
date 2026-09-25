@@ -103,7 +103,7 @@ export function TrainingPage() {
 
       <AnimatePresence mode="wait">
         {task && (
-          <motion.div key={task.case_id + (reveal ? "-r" : "")} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+          <motion.div key={task.case_id + (reveal ? "-r" : "")} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
             <div className="space-y-2">
               <div className="px-1 text-sm text-slate-500">{study(task.selection)}</div>
               {reveal ? (
@@ -197,7 +197,7 @@ export function TrainingPage() {
         )}
       </AnimatePresence>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_1.3fr]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
         <section className="space-y-4">
           <h2 className="font-bold text-ink">{t("training.stats")}</h2>
           {!stats ? <Skeleton className="h-40" /> : (
@@ -232,7 +232,7 @@ export function TrainingPage() {
           {mistakes === null ? <Skeleton className="h-40" /> : mistakes.length === 0 ? (
             <div className="card"><EmptyState icon={CircleCheck} title={t("training.noMistakes")} /></div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2">
               {mistakes.slice(0, 6).map((m) => (
                 <motion.div key={m.case_id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="card flex gap-3 p-4">
                   {m.thumbnail && <img src={m.thumbnail} alt="" className="size-16 shrink-0 rounded-xl bg-slate-900 object-cover" />}

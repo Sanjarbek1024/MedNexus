@@ -89,7 +89,7 @@ export function AnalyzePage() {
       {mode === "batch" ? (
         <BatchForm onQueued={() => navigate("/worklist")} />
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[1.35fr_1fr]">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
           <UploadZone files={file ? [file] : []} preview={preview} onFiles={chooseFile} />
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="card p-6">
             <div className="mb-5">
