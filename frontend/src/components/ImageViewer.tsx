@@ -171,6 +171,7 @@ export function ImageViewer({
   const view = controlled ?? internal;
   const setView = onViewChange ?? setInternal;
   const active = selectable.find((f) => f.name === selected) ?? selectable[0];
+  const labelled = active?.boxes.length ? active.name : null;
   const heatmapFinding = explained.find((f) => f.name === active?.name) ?? explained[0];
   const analyzedBox = result.structures[0]?.box ?? heatmapFinding?.heatmap.box;
   const cropped = analyzedBox && analyzedBox.width * analyzedBox.height < 0.99;
@@ -265,9 +266,12 @@ export function ImageViewer({
               className={`pointer-events-none absolute rounded-md border-2 ${f.name === active?.name ? "border-rose-400 shadow-[0_0_0_3px_rgba(251,113,133,0.25)]" : "border-amber-300/80"}`}
               style={boxStyle(box)}
             >
-              <span className="absolute -top-5 left-0 rounded bg-rose-500/90 px-1.5 text-[10px] font-bold whitespace-nowrap text-white">
-                {finding(f.name)} {box.score.toFixed(2)}
-              </span>
+              {/* Only the selected finding is labelled, so labels of neighbouring boxes never collide. */}
+              {(!labelled || f.name === labelled) && (
+                <span className="absolute -top-5 left-0 rounded bg-rose-500/90 px-1.5 text-[10px] font-bold whitespace-nowrap text-white">
+                  {finding(f.name)} {box.score.toFixed(2)}
+                </span>
+              )}
             </motion.div>
           )),
         )}
