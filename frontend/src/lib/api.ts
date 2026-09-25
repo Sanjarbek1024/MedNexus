@@ -234,6 +234,9 @@ function csrfToken(): string {
   return document.cookie.split("; ").find((c) => c.startsWith("mnx_csrf="))?.slice(9) ?? "";
 }
 
+/** The CSRF cookie lives as long as the refresh token, so it tells whether a session may exist. */
+export const hasSession = (): boolean => csrfToken() !== "";
+
 let refreshing: Promise<boolean> | null = null;
 
 /** One refresh at a time, shared by every request that hit an expired access token. */
@@ -255,7 +258,7 @@ async function send(path: string, init: RequestInit = {}, retry = true): Promise
     throw new ApiError("offline", 0);
   }
   const authRoute = path.startsWith("/auth/login") || path.startsWith("/auth/refresh") || path.startsWith("/auth/register");
-  if (response.status === 401 && retry && !authRoute) {
+  if (response.status === 401 && retry && !authRoute && hasSession()) {
     if (await refreshSession()) return send(path, init, false);
     window.dispatchEvent(new Event(SESSION_EXPIRED));
   }

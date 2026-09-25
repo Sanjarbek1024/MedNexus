@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { useI18n } from "../i18n";
-import { api, SESSION_EXPIRED, type Language, type Role, type User } from "./api";
+import { api, hasSession, SESSION_EXPIRED, type Language, type Role, type User } from "./api";
 
 interface Auth {
   user: User | null;
@@ -18,7 +18,8 @@ const AuthContext = createContext<Auth | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const i18n = useI18n();
   const [user, setUser] = useState<User | null>(null);
-  const [ready, setReady] = useState(false);
+  // Without a session cookie there is nothing to restore: ready immediately, no request.
+  const [ready, setReady] = useState(() => !hasSession());
 
   const adopt = useCallback(
     (next: User) => {
@@ -30,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    api.me().then(adopt, () => setUser(null)).finally(() => setReady(true));
+    if (hasSession()) api.me().then(adopt, () => setUser(null)).finally(() => setReady(true));
     const expire = () => setUser(null);
     window.addEventListener(SESSION_EXPIRED, expire);
     return () => window.removeEventListener(SESSION_EXPIRED, expire);

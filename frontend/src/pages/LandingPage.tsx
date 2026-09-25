@@ -224,7 +224,7 @@ export function LandingPage() {
           <span className="chip bg-emerald-50 py-1 text-emerald-700 ring-1 ring-emerald-200">
             <Sparkles className="size-3.5" /> {t("landing.badge")}
           </span>
-          <h1 className="mt-5 text-4xl leading-[1.05] font-extrabold tracking-tight text-ink sm:text-6xl">{t("landing.title")}</h1>
+          <h1 className="mt-5 text-4xl leading-[1.08] font-extrabold tracking-tight text-balance text-ink sm:text-5xl">{t("landing.title")}</h1>
           <p className="mt-5 max-w-xl text-lg leading-relaxed text-slate-500">{t("landing.subtitle")}</p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href={cta.href} className="btn-primary rounded-full px-7 py-3.5 text-base">
