@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { CircleAlert, KeyRound, LoaderCircle } from "lucide-react";
+import { CircleAlert, HeartPulse, KeyRound, LoaderCircle, Stethoscope } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
 import { LanguageSwitch, Logo } from "../components/AppShell";
@@ -12,10 +12,14 @@ import { Link } from "../lib/router";
 // Accounts created by scripts/seed_demo.py (shown so judges and testers can sign in quickly).
 const DEMO_PASSWORD = "MedNexus-Demo-2026";
 const DEMO_ACCOUNTS: { email: string; role: Role }[] = [
-  { email: "radiologist@mednexus.uz", role: "radiologist" },
-  { email: "resident@mednexus.uz", role: "resident" },
-  { email: "admin@mednexus.uz", role: "admin" },
+  { email: "user@mednexus.uz", role: "user" },
+  { email: "doctor@mednexus.uz", role: "doctor" },
 ];
+
+const ROLE_CHOICES = [
+  { id: "user", icon: HeartPulse, title: "auth.roleUser", text: "auth.roleUserText" },
+  { id: "doctor", icon: Stethoscope, title: "auth.roleDoctor", text: "auth.roleDoctorText" },
+] as const;
 
 export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
   const { t } = useI18n();
@@ -23,7 +27,7 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [role, setRole] = useState<Role>("radiologist");
+  const [role, setRole] = useState<Role>("user");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const signup = mode === "signup";
@@ -90,18 +94,24 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
             {signup && (
               <div>
                 <span className="eyebrow">{t("auth.role")}</span>
-                <div className="mt-1.5 grid grid-cols-2 gap-2">
-                  {(["radiologist", "resident"] as const).map((option) => (
+                <div className="mt-1.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {ROLE_CHOICES.map(({ id, icon: Icon, title, text }) => (
                     <button
-                      key={option}
+                      key={id}
                       type="button"
-                      onClick={() => setRole(option)}
-                      aria-pressed={role === option}
-                      className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${
-                        role === option ? "border-emerald-400 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-white text-slate-600"
+                      onClick={() => setRole(id)}
+                      aria-pressed={role === id}
+                      className={`flex flex-col gap-1.5 rounded-2xl border p-3 text-left transition ${
+                        role === id ? "border-emerald-400 bg-emerald-50 ring-4 ring-emerald-100" : "border-slate-200 bg-white hover:border-slate-300"
                       }`}
                     >
-                      {t(`roles.${option}`)}
+                      <span className="flex items-center gap-2 text-sm font-bold text-ink">
+                        <Icon className={`size-4 ${role === id ? "text-emerald-600" : "text-slate-400"}`} /> {t(title)}
+                      </span>
+                      <span className="text-xs leading-snug text-slate-500">{t(text)}</span>
+                      {id === "doctor" && (
+                        <span className="chip mt-0.5 w-fit bg-emerald-100/70 text-[10px] text-emerald-800">{t("auth.subscriptionFree")}</span>
+                      )}
                     </button>
                   ))}
                 </div>

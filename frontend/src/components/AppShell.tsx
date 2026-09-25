@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ChevronsLeft,
+  FolderHeart,
   ChevronsRight,
   Columns2,
   GraduationCap,
@@ -18,7 +19,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { useI18n } from "../i18n";
 import type { Language, Role } from "../lib/api";
-import { useAuth } from "../lib/auth";
+import { homeFor, useAuth } from "../lib/auth";
 import { Link, navigate } from "../lib/router";
 import { Disclaimer } from "./Disclaimer";
 
@@ -39,14 +40,15 @@ export function Logo({ className = "size-9" }: { className?: string }) {
   );
 }
 
-const NAV: { href: string; key: string; icon: LucideIcon; roles?: Role[] }[] = [
-  { href: "/dashboard", key: "dashboard", icon: LayoutDashboard },
-  { href: "/worklist", key: "worklist", icon: ListChecks },
-  { href: "/analyze", key: "analyze", icon: ScanLine },
-  { href: "/compare", key: "compare", icon: Columns2 },
-  { href: "/training", key: "training", icon: GraduationCap },
-  { href: "/monitor", key: "monitor", icon: ShieldCheck, roles: ["admin"] },
-  { href: "/settings", key: "settings", icon: Settings },
+const NAV: { href: string; key: string; icon: LucideIcon; roles: Role[] }[] = [
+  { href: "/my", key: "myScans", icon: FolderHeart, roles: ["user"] },
+  { href: "/dashboard", key: "dashboard", icon: LayoutDashboard, roles: ["doctor"] },
+  { href: "/worklist", key: "worklist", icon: ListChecks, roles: ["doctor"] },
+  { href: "/analyze", key: "analyze", icon: ScanLine, roles: ["user", "doctor"] },
+  { href: "/compare", key: "compare", icon: Columns2, roles: ["doctor"] },
+  { href: "/training", key: "training", icon: GraduationCap, roles: ["doctor"] },
+  { href: "/monitor", key: "monitor", icon: ShieldCheck, roles: ["doctor"] },
+  { href: "/settings", key: "settings", icon: Settings, roles: ["user", "doctor"] },
 ];
 
 export function LanguageSwitch({ onChange }: { onChange?: (language: Language) => void }) {
@@ -137,10 +139,10 @@ function UserMenu() {
 function NavItems({ path, collapsed, onNavigate }: { path: string; collapsed: boolean; onNavigate?: () => void }) {
   const { user } = useAuth();
   const { t } = useI18n();
-  const active = (href: string) => path === href || (href === "/worklist" && path.startsWith("/cases"));
+  const active = (href: string) => path === href || ((href === "/worklist" || href === "/my") && path.startsWith("/cases"));
   return (
     <nav className="flex flex-col gap-1" aria-label={t("nav.menu")}>
-      {NAV.filter((item) => !item.roles || (user && item.roles.includes(user.role))).map(({ href, key, icon: Icon }) => (
+      {NAV.filter((item) => user && item.roles.includes(user.role)).map(({ href, key, icon: Icon }) => (
         <Link
           key={href}
           href={href}
@@ -164,7 +166,7 @@ function NavItems({ path, collapsed, onNavigate }: { path: string; collapsed: bo
 
 export function AppShell({ path, children }: { path: string; children: ReactNode }) {
   const { t } = useI18n();
-  const { setLanguage } = useAuth();
+  const { user, setLanguage } = useAuth();
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem(COLLAPSED_KEY) === "1";
@@ -190,7 +192,7 @@ export function AppShell({ path, children }: { path: string; children: ReactNode
         transition={{ type: "spring", bounce: 0.1, duration: 0.35 }}
         className="no-print sticky top-0 hidden h-screen shrink-0 flex-col border-r border-white/70 bg-white/55 px-3 py-4 backdrop-blur-xl lg:flex"
       >
-        <Link href="/dashboard" className={`mb-6 flex items-center gap-2.5 px-2 ${collapsed ? "justify-center" : ""}`}>
+        <Link href={user ? homeFor(user.role) : "/"} className={`mb-6 flex items-center gap-2.5 px-2 ${collapsed ? "justify-center" : ""}`}>
           <Logo />
           {!collapsed && (
             <div className="leading-tight">

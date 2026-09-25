@@ -52,7 +52,8 @@ function RichText({ text }: { text: string }) {
   );
 }
 
-export function ChatPanel({ result, open, onClose }: { result: AnalysisResult; open: boolean; onClose: () => void }) {
+/** `patient` switches to plain-language copy and patient suggestions (the backend picks the matching prompt by role). */
+export function ChatPanel({ result, open, onClose, patient = false }: { result: AnalysisResult; open: boolean; onClose: () => void; patient?: boolean }) {
   const { t, list, language } = useI18n();
   const [messages, setMessages] = useState<ChatMessage[] | null>(null);
   const [draft, setDraft] = useState("");
@@ -112,7 +113,7 @@ export function ChatPanel({ result, open, onClose }: { result: AnalysisResult; o
           <div className="flex size-10 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-glow"><MessagesSquare className="size-5" /></div>
           <div>
             <h2 className="text-lg font-bold text-ink">{t("chat.title")}</h2>
-            <p className="text-xs text-slate-500">{t("chat.subtitle")}</p>
+            <p className="text-xs text-slate-500">{t(patient ? "chat.patientSubtitle" : "chat.subtitle")}</p>
           </div>
         </div>
         <button type="button" onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100" aria-label={t("common.close")}><X className="size-5" /></button>
@@ -123,7 +124,7 @@ export function ChatPanel({ result, open, onClose }: { result: AnalysisResult; o
         {empty && (
           <div className="flex flex-col items-center gap-4 py-8 text-center">
             <Sparkles className="size-8 text-emerald-500" />
-            <p className="max-w-sm text-sm text-slate-500">{t("chat.empty")}</p>
+            <p className="max-w-sm text-sm text-slate-500">{t(patient ? "chat.patientEmpty" : "chat.empty")}</p>
           </div>
         )}
         {messages?.map((m) => (
@@ -152,7 +153,7 @@ export function ChatPanel({ result, open, onClose }: { result: AnalysisResult; o
       <div className="border-t border-slate-200/70 bg-white/70 px-6 py-4">
         {(empty || (messages?.length ?? 0) < 2) && (
           <div className="mb-3 flex flex-wrap gap-2">
-            {list<string>("chat.suggestions").map((s) => (
+            {list<string>(patient ? "chat.patientSuggestions" : "chat.suggestions").map((s) => (
               <button key={s} type="button" disabled={streaming !== null} onClick={() => send(s)} className="chip bg-emerald-50 py-1.5 text-emerald-800 ring-1 ring-emerald-200 transition hover:bg-emerald-100">
                 {s}
               </button>

@@ -14,6 +14,7 @@ function blind(task: TrainingCase): AnalysisResult {
     owner: null, acquired_at: null, selection: task.selection, image: task.image, rejected: false, rejection_reasons: [],
     checks: [], findings: [], other_scores: [], not_assessed: [], thresholds: {}, structures: [], measurements: [],
     report: null, report_error: null, physician_report: null, suggested_report: null, versions: {}, timings_ms: {}, review: null, audit: [],
+    symptoms: null, patient_age: null, patient_sex: null, assessment: null, assessment_error: null, hospitals: [],
   };
 }
 

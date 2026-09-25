@@ -22,12 +22,14 @@ import { useEffect, useState } from "react";
 import { ChatPanel } from "../components/ChatPanel";
 import { FindingsPanel, MeasurementCard } from "../components/Findings";
 import { ImageViewer } from "../components/ImageViewer";
+import { AssessmentCard, PatientResult } from "../components/PatientResult";
 import { ReportCard } from "../components/ReportCard";
 import { ReportEditor } from "../components/ReportEditor";
 import { SafetyPanel } from "../components/SafetyPanel";
 import { PriorityBadge, Skeleton, StatusChip } from "../components/ui";
 import { useI18n } from "../i18n";
 import { api, type AnalysisResult, type AuditEvent, type ReviewAction } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import { caseNumber } from "../lib/format";
 import { Link, navigate } from "../lib/router";
 
@@ -194,6 +196,7 @@ function CaseView({ initial }: { initial: AnalysisResult }) {
             <>
               <PhysicianReportCard result={result} onAmend={() => setEditor("edit")} />
               <FindingsPanel result={result} selected={selected} onSelect={setSelected} />
+              <AssessmentCard result={result} onUpdate={setResult} />
               {result.measurements.map((m) => <MeasurementCard key={m.id} measurement={m} view={result.selection.view} />)}
             </>
           )}
@@ -238,6 +241,8 @@ function CaseView({ initial }: { initial: AnalysisResult }) {
 
 export function CasePage({ caseId }: { caseId: number }) {
   const { t } = useI18n();
+  const { user } = useAuth();
+  const doctor = user?.role === "doctor";
   const [result, setResult] = useState<AnalysisResult | null>(recent.get(caseId) ?? null);
   const [error, setError] = useState<string | null>(null);
   const pending = result?.status === "queued" || result?.status === "analyzing";
@@ -267,9 +272,10 @@ export function CasePage({ caseId }: { caseId: number }) {
         <h1 className="text-2xl font-bold text-ink">{result.status === "failed" ? t("case.failedTitle") : t("case.pendingTitle")}</h1>
         {result.status !== "failed" && <p className="text-slate-500">{t("case.pendingText")}</p>}
         {result.image.url && <img src={result.image.url} alt="" className="size-40 rounded-2xl bg-slate-900 object-contain" />}
-        <Link href="/worklist" className="btn-ghost"><ArrowLeft className="size-4" /> {t("case.history")}</Link>
+        <Link href={doctor ? "/worklist" : "/my"} className="btn-ghost"><ArrowLeft className="size-4" /> {doctor ? t("case.history") : t("patient.back")}</Link>
       </div>
     );
   }
-  return <CaseView key={`${result.case_id}-${result.status}`} initial={result} />;
+  const key = `${result.case_id}-${result.status}`;
+  return doctor ? <CaseView key={key} initial={result} /> : <PatientResult key={key} initial={result} />;
 }

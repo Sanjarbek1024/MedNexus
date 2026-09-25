@@ -1,14 +1,16 @@
 import { motion } from "framer-motion";
 import {
   ArrowRight,
+  BadgeCheck,
+  Bone,
   BookOpenCheck,
+  Brain,
+  Building2,
   CircleCheck,
   Clock,
-  Columns2,
-  FileText,
+  FileQuestion,
   Fingerprint,
-  Flame,
-  GraduationCap,
+  HeartPulse,
   Layers,
   ListChecks,
   MessagesSquare,
@@ -17,19 +19,21 @@ import {
   ShieldCheck,
   Siren,
   Sparkles,
+  Stethoscope,
   UserCheck,
 } from "lucide-react";
 
 import { LanguageSwitch, Logo } from "../components/AppShell";
 import { Disclaimer } from "../components/Disclaimer";
 import { useI18n } from "../i18n";
-import { useAuth } from "../lib/auth";
+import { homeFor, useAuth } from "../lib/auth";
 import { Link } from "../lib/router";
 
 type Item = { title: string; text: string };
+type Audience = { title: string; text: string; points: readonly string[] };
 
-const PROBLEM_ICONS = [Clock, Siren, Columns2, FileText];
-const FEATURE_ICONS = [ListChecks, Flame, Columns2, FileText, MessagesSquare, GraduationCap];
+const PROBLEM_ICONS = [FileQuestion, HeartPulse, Clock, Siren];
+const FEATURE_ICONS = [Stethoscope, Bone, Brain, ListChecks, MessagesSquare, Building2];
 const SAFETY_ICONS = [ShieldCheck, Radar, BookOpenCheck, UserCheck, Fingerprint, Layers];
 
 /** A stylized chest radiograph drawn in SVG (no patient data, no third-party image). */
@@ -192,10 +196,53 @@ function Cards({ items, icons, columns = "sm:grid-cols-2 lg:grid-cols-3" }: { it
   );
 }
 
+function AudienceCard({ audience, icon: Icon, featured = false, badge }: { audience: Audience; icon: typeof HeartPulse; featured?: boolean; badge?: string }) {
+  const { t } = useI18n();
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-60px" }}
+      className={`relative flex flex-col overflow-hidden rounded-[28px] p-7 sm:p-8 ${
+        featured ? "bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 text-white shadow-2xl shadow-emerald-900/20" : "card"
+      }`}
+    >
+      {featured && <div className="absolute inset-0 opacity-15" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)", backgroundSize: "24px 24px" }} />}
+      <div className="relative flex items-center gap-3">
+        <div className={`flex size-12 items-center justify-center rounded-2xl ${featured ? "bg-white/15 ring-1 ring-white/25" : "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100"}`}>
+          <Icon className="size-6" />
+        </div>
+        <h3 className={`text-2xl font-extrabold tracking-tight ${featured ? "" : "text-ink"}`}>{audience.title}</h3>
+      </div>
+      <p className={`relative mt-4 leading-relaxed ${featured ? "text-emerald-50/90" : "text-slate-500"}`}>{audience.text}</p>
+      <ul className="relative mt-5 space-y-2.5">
+        {audience.points.map((point) => (
+          <li key={point} className="flex items-start gap-2.5 text-sm font-semibold">
+            <CircleCheck className={`mt-0.5 size-4 shrink-0 ${featured ? "text-emerald-200" : "text-emerald-500"}`} />
+            <span className={featured ? "" : "text-slate-700"}>{point}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="relative mt-auto flex flex-wrap items-center gap-3 pt-7">
+        <Link href="/signup" className={`btn rounded-full px-6 py-3 ${featured ? "bg-white text-emerald-700 shadow-lg hover:bg-emerald-50" : "btn-primary"}`}>
+          {t("landing.start")} <ArrowRight className="size-4" />
+        </Link>
+        {badge && <span className="chip bg-emerald-50 py-1 text-emerald-700 ring-1 ring-emerald-200"><BadgeCheck className="size-3.5" /> {badge}</span>}
+      </div>
+    </motion.div>
+  );
+}
+
 export function LandingPage() {
   const { t, list } = useI18n();
   const { user } = useAuth();
-  const cta = user ? { href: "/dashboard", label: t("landing.openApp") } : { href: "/signup", label: t("landing.start") };
+  const home = user ? homeFor(user.role) : null;
+  const cta = home ? { href: home, label: t("landing.openApp") } : { href: "/signup", label: t("landing.start") };
+  const audience = (key: "forPeople" | "forDoctors"): Audience => ({
+    title: t(`landing.${key}.title`),
+    text: t(`landing.${key}.text`),
+    points: list<string>(`landing.${key}.points`),
+  });
 
   return (
     <div className="min-h-screen overflow-x-clip">
@@ -206,13 +253,14 @@ export function LandingPage() {
             <span className="text-[15px] font-extrabold tracking-tight text-ink">MedNexus</span>
           </Link>
           <nav className="hidden items-center gap-5 text-sm font-semibold text-slate-500 md:flex">
+            <a href="#audiences" className="hover:text-ink">{t("landing.audiencesTitle")}</a>
             <a href="#problem" className="hover:text-ink">{t("landing.problemTitle")}</a>
             <a href="#how" className="hover:text-ink">{t("landing.howTitle")}</a>
             <a href="#safety" className="hover:text-ink">{t("landing.safetyTitle")}</a>
           </nav>
           <div className="ml-auto flex items-center gap-3">
             <LanguageSwitch />
-            <Link href={user ? "/dashboard" : "/signin"} className="btn-primary rounded-full px-5">
+            <Link href={home ?? "/signin"} className="btn-primary rounded-full px-5">
               {user ? t("landing.openApp") : t("common.signIn")}
             </Link>
           </div>
@@ -221,11 +269,21 @@ export function LandingPage() {
 
       <section className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-14 px-4 pt-14 pb-20 sm:px-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-          <span className="chip bg-emerald-50 py-1 text-emerald-700 ring-1 ring-emerald-200">
+          <span className="chip max-w-full bg-emerald-50 py-1 whitespace-normal! text-emerald-700 ring-1 ring-emerald-200">
             <Sparkles className="size-3.5" /> {t("landing.badge")}
           </span>
           <h1 className="mt-5 text-4xl leading-[1.08] font-extrabold tracking-tight text-balance text-ink sm:text-5xl">{t("landing.title")}</h1>
           <p className="mt-5 max-w-xl text-lg leading-relaxed text-slate-500">{t("landing.subtitle")}</p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            {t("landing.modalities").split(" · ").map((item, i) => {
+              const Icon = [Stethoscope, Bone, Brain][i % 3];
+              return (
+                <span key={item} className="chip bg-white/80 py-1.5 text-slate-700 shadow-soft ring-1 ring-slate-200/70">
+                  <Icon className="size-3.5 text-emerald-600" /> {item}
+                </span>
+              );
+            })}
+          </div>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href={cta.href} className="btn-primary rounded-full px-7 py-3.5 text-base">
               {cta.label} <ArrowRight className="size-5" />
@@ -238,6 +296,13 @@ export function LandingPage() {
         </motion.div>
         <ProductPreview />
       </section>
+
+      <Section id="audiences" title={t("landing.audiencesTitle")}>
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+          <AudienceCard audience={audience("forPeople")} icon={HeartPulse} featured />
+          <AudienceCard audience={audience("forDoctors")} icon={Stethoscope} badge={t("auth.subscriptionFree")} />
+        </div>
+      </Section>
 
       <div id="problem">
         <Section title={t("landing.problemTitle")}>

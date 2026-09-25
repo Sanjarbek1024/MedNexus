@@ -29,6 +29,10 @@ const FINDINGS: Record<Exclude<Language, "en">, Record<string, string>> = {
     "Pronator sign": "Pronator belgisi",
     "Soft tissue finding": "Yumshoq to‘qima o‘zgarishi",
     "Cardiothoracic ratio": "Kardiotorakal indeks",
+    Glioma: "Glioma",
+    Meningioma: "Meningioma",
+    "Pituitary tumor": "Gipofiz o‘smasi",
+    "No tumor": "O‘sma aniqlanmadi",
   },
   ru: {
     Atelectasis: "Ателектаз",
@@ -57,6 +61,10 @@ const FINDINGS: Record<Exclude<Language, "en">, Record<string, string>> = {
     "Pronator sign": "Симптом пронатора",
     "Soft tissue finding": "Изменения мягких тканей",
     "Cardiothoracic ratio": "Кардиоторакальный индекс",
+    Glioma: "Глиома",
+    Meningioma: "Менингиома",
+    "Pituitary tumor": "Опухоль гипофиза",
+    "No tumor": "Опухоль не выявлена",
   },
 };
 
@@ -79,3 +87,21 @@ export const findingName = (language: Language, name: string): string =>
   language === "en" ? name : (FINDINGS[language][name] ?? name);
 
 export const taxonomyLabel = (language: Language, id: string): string => TAXONOMY[language][id] ?? id;
+
+// Assessment.specialty and Hospital.specialties use these ids.
+const SPECIALTIES: Record<Language, Record<string, string>> = {
+  en: {
+    pulmonology: "Pulmonology", oncology: "Oncology", neurosurgery: "Neurosurgery", neurology: "Neurology",
+    traumatology: "Traumatology", cardiology: "Cardiology", general: "General practice",
+  },
+  uz: {
+    pulmonology: "Pulmonologiya", oncology: "Onkologiya", neurosurgery: "Neyroxirurgiya", neurology: "Nevrologiya",
+    traumatology: "Travmatologiya", cardiology: "Kardiologiya", general: "Umumiy amaliyot",
+  },
+  ru: {
+    pulmonology: "Пульмонология", oncology: "Онкология", neurosurgery: "Нейрохирургия", neurology: "Неврология",
+    traumatology: "Травматология", cardiology: "Кардиология", general: "Общая практика",
+  },
+};
+
+export const specialtyLabel = (language: Language, id: string): string => SPECIALTIES[language][id] ?? id;

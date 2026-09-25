@@ -1,7 +1,9 @@
 // Typed client for the MedNexus API. Types mirror backend/app/schemas.py.
 
 export type Language = "uz" | "en" | "ru";
-export type Role = "radiologist" | "resident" | "admin";
+export type Role = "user" | "doctor";
+export type Sex = "male" | "female";
+export type Urgency = "routine" | "soon" | "urgent";
 export type CheckStatus = "pass" | "warn" | "fail";
 export type CheckCategory = "quality" | "distribution" | "agreement" | "metadata" | "report";
 export type Level = "high" | "moderate" | "uncertain";
@@ -12,7 +14,6 @@ export type Stage = "quality" | "models" | "explainability" | "report";
 export type Trend = "improved" | "stable" | "worsened" | "new" | "resolved";
 
 export interface User { id: number; email: string; full_name: string; role: Role; language: Language; created_at: string }
-export interface AdminUser extends User { is_active: boolean; locked: boolean; last_login_at: string | null }
 
 export interface ViewOption { id: string; label: string; supported: boolean; analyzers: string[] }
 export interface RegionOption { id: string; label: string; supported: boolean; views: ViewOption[] }
@@ -80,6 +81,33 @@ export interface Review {
   added_findings: string[];
   reviewed_at: string;
 }
+export interface Localized { uz: string; en: string; ru: string }
+export interface Assessment {
+  audience: "patient" | "doctor";
+  language: Language;
+  model: string;
+  summary: string;
+  image_observations: string[];
+  differential: { name: string; probability: number; reasoning: string }[];
+  causes: string[];
+  urgency: Urgency;
+  urgency_text: string;
+  next_steps: string[];
+  questions_for_doctor: string[];
+  specialty: string;
+  disclaimer: string;
+}
+export interface Hospital {
+  id: string;
+  names: Localized;
+  city: string;
+  specialties: string[];
+  description: Localized;
+  partner: boolean;
+  emergency: boolean;
+  phone: string | null;
+  website: string | null;
+}
 export interface AuditEvent { id: number; timestamp: string; action: string; actor: string; details: Record<string, unknown>; hash: string }
 export interface PatientRef { id: number; pseudonym: string }
 export interface AnalysisResult {
@@ -110,6 +138,12 @@ export interface AnalysisResult {
   timings_ms: Record<string, number>;
   review: Review | null;
   audit: AuditEvent[];
+  symptoms: string | null;
+  patient_age: number | null;
+  patient_sex: Sex | null;
+  assessment: Assessment | null;
+  assessment_error: string | null;
+  hospitals: Hospital[];
 }
 export interface CaseSummary {
   id: number;
@@ -129,6 +163,8 @@ export interface CaseSummary {
   reviewer: string | null;
   reviewed_at: string | null;
   error: string | null;
+  /** Urgency of the AI assessment, when the backend includes it in the list. */
+  urgency?: Urgency | null;
 }
 export interface ReviewRequest {
   action: ReviewAction;
@@ -329,10 +365,6 @@ export const api = {
   changePassword: (current_password: string, new_password: string) =>
     request<User>("/auth/change-password", json({ current_password, new_password })),
 
-  users: () => request<AdminUser[]>("/users"),
-  updateUser: (id: number, body: { role?: Role; is_active?: boolean; unlock?: boolean }) =>
-    request<AdminUser>(`/users/${id}`, json(body, "PATCH")),
-
   cases: (query: CaseQuery = {}) => {
     const params = new URLSearchParams(
       Object.entries(query).filter(([, v]) => v !== undefined && v !== "").map(([k, v]) => [k, String(v)]),
@@ -343,6 +375,8 @@ export const api = {
   review: (id: number, body: ReviewRequest) => request<AnalysisResult>(`/cases/${id}/review`, json(body)),
   saveDraft: (id: number, body: ReportSections) => request<AnalysisResult>(`/cases/${id}/report/draft`, json(body, "PUT")),
   regenerateReport: (id: number, language: Language) => request<AnalysisResult>(`/cases/${id}/report`, json({ language })),
+  regenerateAssessment: (id: number, language: Language) =>
+    request<AnalysisResult>(`/cases/${id}/assessment`, json({ language })),
   verifyAudit: () => request<{ valid: boolean; events: number }>("/audit/verify"),
 
   chatHistory: (id: number) => request<ChatMessage[]>(`/cases/${id}/chat`),
@@ -377,7 +411,7 @@ export const api = {
   /** Upload one study; progress events arrive while the models run. */
   async analyze(
     file: File,
-    fields: Selection & { patient_id?: number; acquired_on?: string },
+    fields: Selection & { patient_id?: number; acquired_on?: string; symptoms?: string; age?: number; sex?: Sex },
     onProgress: (stage: Stage) => void,
   ): Promise<AnalysisResult> {
     const form = new FormData();

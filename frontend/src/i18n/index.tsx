@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 
 import type { Check, Language } from "../lib/api";
 import en from "./en";
-import { findingName, taxonomyLabel } from "./labels";
+import { findingName, specialtyLabel, taxonomyLabel } from "./labels";
 import ru from "./ru";
 import uz from "./uz";
 
@@ -36,6 +36,7 @@ interface I18n {
   list: <T>(key: string) => readonly T[];
   finding: (name: string) => string;
   taxonomy: (id: string) => string;
+  specialty: (id: string) => string;
   study: (s: { modality: string; region: string; view: string }) => string;
   check: (check: Check) => string;
   date: (iso: string, withTime?: boolean) => string;
@@ -82,6 +83,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       list: <T,>(key: string) => ((lookup(DICTIONARIES[language], key) ?? lookup(en, key) ?? []) as readonly T[]),
       finding: (name) => findingName(language, name),
       taxonomy: (id) => taxonomyLabel(language, id),
+      specialty: (id) => specialtyLabel(language, id),
       study: (s) => [s.modality, s.region, s.view].map((id) => taxonomyLabel(language, id)).join(" · "),
       check: (check) => {
         const key = check.code ? `checks.${check.code}` : "";

@@ -3,7 +3,8 @@ import { LoaderCircle } from "lucide-react";
 import { lazy, Suspense, useEffect } from "react";
 
 import { AppShell } from "./components/AppShell";
-import { useAuth } from "./lib/auth";
+import type { Role } from "./lib/api";
+import { homeFor, useAuth } from "./lib/auth";
 import { navigate, useLocation } from "./lib/router";
 import { AuthPage } from "./pages/AuthPage";
 import { LandingPage } from "./pages/LandingPage";
@@ -13,6 +14,7 @@ const AnalyzePage = lazy(() => import("./pages/AnalyzePage").then((m) => ({ defa
 const CasePage = lazy(() => import("./pages/CasePage").then((m) => ({ default: m.CasePage })));
 const ComparePage = lazy(() => import("./pages/ComparePage").then((m) => ({ default: m.ComparePage })));
 const DashboardPage = lazy(() => import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage })));
+const MyScansPage = lazy(() => import("./pages/MyScansPage").then((m) => ({ default: m.MyScansPage })));
 const MonitorPage = lazy(() => import("./pages/MonitorPage").then((m) => ({ default: m.MonitorPage })));
 const ReportPage = lazy(() => import("./pages/ReportPage").then((m) => ({ default: m.ReportPage })));
 const SettingsPage = lazy(() => import("./pages/SettingsPage").then((m) => ({ default: m.SettingsPage })));
@@ -32,10 +34,16 @@ function Splash() {
   );
 }
 
-function appPage(path: string, query: URLSearchParams, admin: boolean) {
+// Clinical workspace pages; people using MedNexus for their own scans are sent to "My scans".
+const DOCTOR_ONLY = new Set(["/dashboard", "/worklist", "/compare", "/training", "/monitor", "/history"]);
+
+function appPage(path: string, query: URLSearchParams, role: Role) {
   const caseMatch = /^\/cases\/(\d+)$/.exec(path);
   if (caseMatch) return <CasePage caseId={Number(caseMatch[1])} />;
+  if (role !== "doctor" && DOCTOR_ONLY.has(path)) return <Redirect to="/my" />;
   switch (path) {
+    case "/my":
+      return role === "doctor" ? <Redirect to="/worklist" /> : <MyScansPage />;
     case "/dashboard":
       return <DashboardPage />;
     case "/worklist":
@@ -47,13 +55,13 @@ function appPage(path: string, query: URLSearchParams, admin: boolean) {
     case "/training":
       return <TrainingPage />;
     case "/monitor":
-      return admin ? <MonitorPage /> : <Redirect to="/dashboard" />;
+      return <MonitorPage />;
     case "/settings":
       return <SettingsPage />;
     case "/history":
       return <Redirect to="/worklist" />;
     default:
-      return <Redirect to="/dashboard" />;
+      return <Redirect to={homeFor(role)} />;
   }
 }
 
@@ -64,11 +72,12 @@ function Routes() {
   if (path === "/") return <LandingPage />;
   if (!ready) return <Splash />;
   if (path === "/signin" || path === "/signup") {
-    return user ? <Redirect to={query.get("next") ?? "/dashboard"} /> : <AuthPage mode={path === "/signin" ? "signin" : "signup"} />;
+    return user ? <Redirect to={query.get("next") ?? homeFor(user.role)} /> : <AuthPage mode={path === "/signin" ? "signin" : "signup"} />;
   }
   if (!user) return <Redirect to={`/signin?next=${encodeURIComponent(path + window.location.search)}`} />;
 
   const reportMatch = /^\/cases\/(\d+)\/report$/.exec(path);
+  if (reportMatch && user.role !== "doctor") return <Redirect to={`/cases/${reportMatch[1]}`} />;
   if (reportMatch) {
     return (
       <Suspense fallback={<Splash />}>
@@ -86,7 +95,7 @@ function Routes() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
         >
-          {appPage(path, query, user.role === "admin")}
+          {appPage(path, query, user.role)}
         </motion.div>
       </Suspense>
     </AppShell>
