@@ -1,7 +1,7 @@
 PYTHON ?= python3.11
 VENV_PY = backend/.venv/bin/python
 
-.PHONY: setup samples dev test docker
+.PHONY: setup samples seed dev test docker
 
 setup:
 	$(PYTHON) -m venv backend/.venv
@@ -11,6 +11,9 @@ setup:
 
 samples:
 	$(VENV_PY) scripts/download_samples.py
+
+seed:
+	$(VENV_PY) scripts/seed_demo.py
 
 dev:
 	$(VENV_PY) scripts/dev.py
