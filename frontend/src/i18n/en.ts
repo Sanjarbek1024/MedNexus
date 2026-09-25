@@ -249,6 +249,8 @@ const en = {
     below: "Below threshold ({n})",
     notAssessed: "Not assessed (not covered by every model): {items}.",
     ctr: "Cardiothoracic ratio",
+    ctrDetail: "Estimated from the AI segmentation: widest heart diameter over the widest distance between the outer lung borders. Verify on the image.",
+    ctrAp: "AP projection magnifies the heart, so the ratio is overestimated.",
     above: "Above the conventional {r} reference",
     within: "Within the conventional {r} reference",
   },

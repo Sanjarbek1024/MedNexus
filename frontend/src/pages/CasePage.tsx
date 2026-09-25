@@ -194,7 +194,7 @@ function CaseView({ initial }: { initial: AnalysisResult }) {
             <>
               <PhysicianReportCard result={result} onAmend={() => setEditor("edit")} />
               <FindingsPanel result={result} selected={selected} onSelect={setSelected} />
-              {result.measurements.map((m) => <MeasurementCard key={m.id} measurement={m} />)}
+              {result.measurements.map((m) => <MeasurementCard key={m.id} measurement={m} view={result.selection.view} />)}
             </>
           )}
           <SafetyPanel result={result} />

@@ -251,6 +251,8 @@ const uz: Messages = {
     below: "Chegaradan past ({n})",
     notAssessed: "Baholanmagan (har bir model qamrab olmaydi): {items}.",
     ctr: "Kardiotorakal indeks",
+    ctrDetail: "AI segmentatsiyasidan baholangan: yurakning eng katta ko‘ndalang o‘lchami o‘pkalarning tashqi chegaralari orasidagi eng katta masofaga nisbati. Tasvirda tekshiring.",
+    ctrAp: "AP proyeksiya yurakni kattalashtirib ko‘rsatadi, shuning uchun indeks oshirib baholanadi.",
     above: "An’anaviy {r} chegaradan yuqori",
     within: "An’anaviy {r} chegara doirasida",
   },

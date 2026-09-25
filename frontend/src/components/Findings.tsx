@@ -138,7 +138,7 @@ export function FindingsPanel({ result, selected, onSelect }: { result: Analysis
   );
 }
 
-export function MeasurementCard({ measurement }: { measurement: Measurement }) {
+export function MeasurementCard({ measurement, view }: { measurement: Measurement; view: string }) {
   const { t, finding } = useI18n();
   const above = measurement.reference !== null && measurement.value > measurement.reference;
   return (
@@ -154,7 +154,9 @@ export function MeasurementCard({ measurement }: { measurement: Measurement }) {
             {t(above ? "findings.above" : "findings.within", { r: measurement.reference.toFixed(2) })}
           </div>
         )}
-        <p className="mt-2 text-xs leading-relaxed text-slate-500">{measurement.detail}</p>
+        <p className="mt-2 text-xs leading-relaxed text-slate-500">
+          {measurement.id === "ctr" ? `${t("findings.ctrDetail")}${view === "AP" ? ` ${t("findings.ctrAp")}` : ""}` : measurement.detail}
+        </p>
       </div>
     </div>
   );
