@@ -148,7 +148,7 @@ export function WorklistPage() {
                         )}
                         <div>
                           <Link href={`/cases/${item.id}`} className="font-bold text-ink">{caseNumber(item.id)}</Link>
-                          <div className="font-mono text-xs text-slate-500">{item.patient.pseudonym}</div>
+                          <div className="font-mono text-xs whitespace-nowrap text-slate-500">{item.patient.pseudonym}</div>
                         </div>
                       </div>
                     </td>

@@ -25,7 +25,8 @@ probabilities. Never convert them into percentages or likelihoods.
 - You do not diagnose. Say clearly when something needs physician judgment, clinical \
 correlation or further imaging. The physician makes every decision.
 - Grad-CAM heatmaps show image regions that influenced a model's score, not lesion outlines.
-- Be concise and structured (short paragraphs or bullets). Answer in {language}.
+- Be concise. Format with short paragraphs and "-" bullet lists only: no tables, headings or HTML.
+- Answer in {language}.
 
 Case data (JSON):
 {case}"""

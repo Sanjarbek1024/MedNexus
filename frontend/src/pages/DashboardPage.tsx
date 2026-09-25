@@ -17,7 +17,7 @@ function turnaround(minutes: number, t: ReturnType<typeof useI18n>["t"]): string
 }
 
 export function DashboardPage() {
-  const { t, percent, finding, study, language } = useI18n();
+  const { t, percent, finding, study, weekday } = useI18n();
   const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
 
@@ -30,8 +30,6 @@ export function DashboardPage() {
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "greetingMorning" : hour < 18 ? "greetingAfternoon" : "greetingEvening";
-  const weekday = (iso: string) =>
-    new Intl.DateTimeFormat(language === "uz" ? "uz-Latn-UZ" : language === "ru" ? "ru-RU" : "en-GB", { weekday: "short" }).format(new Date(iso));
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6">
@@ -83,7 +81,7 @@ export function DashboardPage() {
           <div className="mt-4">
             {stats ? (
               <GroupedBars
-                categories={stats.daily.map((d) => weekday(d.day))}
+                categories={stats.daily.map((d) => weekday(`${d.day}T12:00:00`))}
                 series={[
                   { label: t("dashboard.uploaded"), color: SERIES.blue, values: stats.daily.map((d) => d.uploaded) },
                   { label: t("dashboard.reviewed"), color: SERIES.emerald, values: stats.daily.map((d) => d.reviewed) },

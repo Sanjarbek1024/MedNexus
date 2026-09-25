@@ -6,17 +6,37 @@ import { useI18n } from "../i18n";
 import { api, type AnalysisResult, type ChatMessage } from "../lib/api";
 import { Drawer } from "./ui";
 
-/** Minimal, safe rendering of the assistant's markdown: paragraphs, bullets and **bold**. */
+const BREAK = /<br\s*\/?>/gi;
+const cells = (row: string) => row.trim().replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+
+/** Minimal, safe rendering of the assistant's markdown: paragraphs, bullets, tables and **bold**. */
 function RichText({ text }: { text: string }) {
   const inline = (line: string): ReactNode[] =>
     line.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
       part.startsWith("**") && part.endsWith("**") ? <strong key={i}>{part.slice(2, -2)}</strong> : <Fragment key={i}>{part}</Fragment>,
     );
+  const cell = (value: string) => value.split(BREAK).map((l, j) => <Fragment key={j}>{j > 0 && <br />}{inline(l.trim())}</Fragment>);
   const blocks = text.split(/\n{2,}/);
   return (
     <div className="space-y-2">
       {blocks.map((block, i) => {
-        const lines = block.split("\n").filter(Boolean);
+        const rows = block.split("\n").filter((l) => l.trim());
+        if (rows.length >= 2 && rows.every((l) => l.trim().startsWith("|"))) {
+          const [head, ...rest] = rows.filter((l) => !/^\s*\|[\s:|-]+\|?\s*$/.test(l)).map(cells);
+          return (
+            <div key={i} className="overflow-x-auto rounded-xl ring-1 ring-slate-200">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-600">
+                  <tr>{head.map((c, j) => <th key={j} className="px-3 py-2 font-semibold">{cell(c)}</th>)}</tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {rest.map((r, j) => <tr key={j}>{r.map((c, k) => <td key={k} className="px-3 py-2 align-top">{cell(c)}</td>)}</tr>)}
+                </tbody>
+              </table>
+            </div>
+          );
+        }
+        const lines = block.replace(BREAK, "\n").split("\n").filter(Boolean);
         if (lines.length && lines.every((l) => /^\s*([-*•]|\d+\.)\s+/.test(l))) {
           return (
             <ul key={i} className="space-y-1">

@@ -9,6 +9,15 @@ import uz from "./uz";
 const DICTIONARIES = { en, uz, ru } as const;
 const STORAGE_KEY = "mednexus.language";
 const LOCALES: Record<Language, string> = { uz: "uz-Latn-UZ", en: "en-GB", ru: "ru-RU" };
+// Browsers ship incomplete Uzbek calendar data (e.g. "2026 M09 25"), so Uzbek dates are built here.
+const UZ_MONTHS = ["yanvar", "fevral", "mart", "aprel", "may", "iyun", "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr"];
+const UZ_WEEKDAYS = ["Ya", "Du", "Se", "Ch", "Pa", "Ju", "Sh"];
+
+function uzbekDate(value: Date, withTime: boolean): string {
+  const time = `${String(value.getHours()).padStart(2, "0")}:${String(value.getMinutes()).padStart(2, "0")}`;
+  const day = `${value.getDate()}-${UZ_MONTHS[value.getMonth()]} ${value.getFullYear()}`;
+  return withTime ? `${day}, ${time}` : day;
+}
 
 type Params = Record<string, string | number>;
 
@@ -30,6 +39,7 @@ interface I18n {
   study: (s: { modality: string; region: string; view: string }) => string;
   check: (check: Check) => string;
   date: (iso: string, withTime?: boolean) => string;
+  weekday: (iso: string) => string;
   number: (value: number, digits?: number) => string;
   percent: (ratio: number) => string;
 }
@@ -84,7 +94,11 @@ export function I18nProvider({ children }: { children: ReactNode }) {
         return key && lookup(en, key) ? t(key, params) : check.detail;
       },
       date: (iso, withTime = true) =>
-        new Intl.DateTimeFormat(locale, withTime ? { dateStyle: "medium", timeStyle: "short" } : { dateStyle: "medium" }).format(new Date(iso)),
+        language === "uz"
+          ? uzbekDate(new Date(iso), withTime)
+          : new Intl.DateTimeFormat(locale, withTime ? { dateStyle: "medium", timeStyle: "short" } : { dateStyle: "medium" }).format(new Date(iso)),
+      weekday: (iso) =>
+        language === "uz" ? UZ_WEEKDAYS[new Date(iso).getDay()] : new Intl.DateTimeFormat(locale, { weekday: "short" }).format(new Date(iso)),
       number: (value, digits = 2) => value.toFixed(digits),
       percent: (ratio) => `${Math.round(ratio * 100)}%`,
     };

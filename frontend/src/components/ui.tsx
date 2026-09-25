@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { X, type LucideIcon } from "lucide-react";
+import { Info, X, type LucideIcon } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 
 import { useI18n } from "../i18n";
@@ -94,14 +94,16 @@ export function StatCard({ icon: Icon, label, value, hint, tone = "text-ink", de
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
       className="card p-5"
-      title={hint}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-2">
         <div className="eyebrow">{label}</div>
-        <Icon className="size-4 text-slate-300" />
+        {hint ? (
+          <span title={hint} aria-label={hint} className="text-slate-300 hover:text-slate-500"><Info className="size-4" /></span>
+        ) : (
+          <Icon className="size-4 shrink-0 text-slate-300" />
+        )}
       </div>
       <div className={`mt-2 text-3xl font-extrabold tabular-nums ${tone}`}>{value}</div>
-      {hint && <div className="mt-1 text-xs text-slate-400">{hint}</div>}
     </motion.div>
   );
 }
