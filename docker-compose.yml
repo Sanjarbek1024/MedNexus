@@ -24,6 +24,7 @@ services:
       PSEUDONYM_KEY: ${PSEUDONYM_KEY:?Set PSEUDONYM_KEY in .env (see .env.example)}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-120b}
+      GROQ_VISION_MODEL: ${GROQ_VISION_MODEL:-qwen/qwen3.8-27b}
       # Browsers accept Secure cookies on http://localhost; set false only for plain http elsewhere.
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       CORS_ORIGINS: '["http://localhost:8080", "http://127.0.0.1:8080"]'

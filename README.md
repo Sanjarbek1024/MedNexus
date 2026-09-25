@@ -1,15 +1,25 @@
 # MedNexus
 
-AI decision support for radiologists: a triaged worklist, explainable findings, prior comparison, report drafting and resident training, with a visible safety layer. The physician makes every decision.
+Medical-image AI for two audiences: people get a calm, plain-language explanation of their own X-ray, fluorography or MRI together with their symptoms, and doctors get a triaged worklist, explainable findings and report drafting. Every answer is an estimate; a doctor makes every decision.
 
 <!-- Screenshots: add images to docs/screenshots/ and reference them here. -->
 > **Screenshots:** `docs/screenshots/landing.png` · `worklist.png` · `case.png` · `compare.png` · `training.png`
 
 ## Features
 
-**Reading workflow**
+**For people (role *User*)**
+- **Image + symptoms.** Upload a chest X-ray / fluorography, an arm or leg X-ray, or a brain MRI, and describe the symptoms (plus optional age and sex).
+- **Plain-language result.**
+  - A vision-language model reads the image together with the specialist model outputs and the symptoms. It returns a calm summary, what the image shows and a differential with estimated likelihoods.
+  - No likelihood is ever above 90 %, and together they never exceed 100 %; every answer says it is not a diagnosis.
+  - It also lists possible causes, next steps, questions to ask the doctor and how soon to see one.
+- **Hospital recommendations.** Partner hospitals first (the referral business model), then the national specialized center for the relevant specialty, family care and emergency care.
+- **Continue in chat.** Follow-up questions about the result, answered in plain words, with danger signs routed to emergency care (103).
+
+**For doctors (role *Doctor*, monthly subscription, free during the pilot)**
 - **Smart worklist.** Studies are ordered by AI urgency (for example a high-confidence pneumothorax, effusion or fracture comes first), with the time in queue always visible. Filters, search and batch upload run in the background.
-- **Analysis.** DICOM, PNG and JPEG. Chest X-ray uses a DenseNet-121 + ResNet-50 ensemble with per-model agreement. Extremity X-ray has a fracture detector with bounding boxes. Pipeline progress is shown live.
+- **Analysis.** DICOM, PNG and JPEG. Chest X-ray uses a DenseNet-121 + ResNet-50 ensemble with per-model agreement. Extremity X-ray has a fracture detector with bounding boxes. Brain MRI has a tumor classifier. CT studies get the vision-language assessment only, marked experimental. Pipeline progress is shown live.
+- **AI differential.** The same image + symptoms assessment in clinical language, next to the model findings.
 - **Explainability.** Grad-CAM heatmaps, lung and heart contours, an estimated cardiothoracic ratio, and detection boxes. The viewer has zoom/pan, side-by-side view and keyboard shortcuts.
 - **Prior comparison.** Two studies of one patient in synced viewers, a findings delta (improved / stable / worsened) and an LLM-drafted interval summary.
 - **Report editor.** A structured report (Findings / Impression / Recommendations) pre-filled from the AI draft. The physician agrees or disagrees with each finding, adds findings the AI missed, then signs and finalizes, and can export to PDF.
@@ -18,11 +28,11 @@ AI decision support for radiologists: a triaged worklist, explainable findings, 
 **Safety layer**
 - **Gates.** Image quality, DICOM header consistency, out-of-distribution (autoencoder) and anatomy / body-region gates. A failed gate returns *Image rejected* with the reason and no findings.
 - **Honest scores.** Scores are model outputs, not probabilities. Confidence thresholds are configurable, and findings the models disagree on are marked *Uncertain – physician review required*.
-- **Grounded language.** The LLM never sees the image. Findings it mentions that the models did not produce are removed and reported.
-- **Human in the loop.** Every result is a draft until a radiologist signs it; residents can draft but not sign.
+- **Grounded language.** The report LLM never sees the image: findings it mentions that the models did not produce are removed and reported. The vision-language assessment does see the image; its likelihoods are capped, labelled as estimates and always shown with a fixed disclaimer.
+- **Human in the loop.** Every result is a draft until a doctor signs it; people see estimates and a disclaimer, never a diagnosis.
 - **Monitoring.** The Safety monitor shows agreement and override rates per pathology over time, rejected images, low-confidence and model-disagreement rates.
 
-**Education.** Training mode offers blind reads of signed cases scored against the radiologist's decision, per-pathology progress, and a *When the AI was wrong* collection.
+**Education.** Training mode offers blind reads of signed cases scored against the signing doctor's decision, per-pathology progress, and a *When the AI was wrong* collection.
 
 **Platform.** Uzbek (default), English and Russian UI and reports; a dashboard with measured turnaround and agreement; a public landing page.
 
@@ -51,13 +61,12 @@ On Linux or macOS, `make setup samples seed dev` does the same. Model weights (~
 
 ### Demo accounts
 
-Password for all three: `MedNexus-Demo-2026`
+Password for both: `MedNexus-Demo-2026`
 
 | Email | Role |
 |---|---|
-| `radiologist@mednexus.uz` | Radiologist |
-| `resident@mednexus.uz` | Resident |
-| `admin@mednexus.uz` | Admin (also sees the Safety monitor and user management) |
+| `user@mednexus.uz` | User: own scans with symptoms, plain-language results, hospitals, chat |
+| `doctor@mednexus.uz` | Doctor: dashboard, worklist, review and sign-off, compare, training, Safety monitor |
 
 ### Tests
 
@@ -113,8 +122,10 @@ A vision-language model fits the same interface: it returns findings, and option
 | ResNet autoencoder `101-elastic` (out-of-distribution gate) | torchxrayvision | Apache-2.0 |
 | PSPNet anatomy segmentation | torchxrayvision, trained on [ChestX-Det](https://github.com/Deepwise-AILab/ChestX-Det-Dataset) (Lian et al., 2021) | Apache-2.0 |
 | YOLOv7-p6 fracture detector (ONNX) | [YOLOv7-Bone-Fracture-Detection](https://github.com/mdciri/YOLOv7-Bone-Fracture-Detection), trained on [GRAZPEDWRI-DX](https://doi.org/10.1038/s41597-022-01328-z) (pediatric wrist radiographs) | GPL-3.0 (weights downloaded at runtime; dataset CC BY 4.0) |
+| ViT-B/16 brain tumor classifier (brain MRI: glioma, meningioma, pituitary tumor, no tumor) | [Hemg/Brain-Tumor-Classification](https://huggingface.co/Hemg/Brain-Tumor-Classification) on Hugging Face, fine-tuned from `google/vit-base-patch16-224-in21k`; label set of the Kaggle [Brain Tumor MRI Dataset](https://www.kaggle.com/datasets/masoudnickparvar/brain-tumor-mri-dataset) (training data not named on the model card) | Apache-2.0 (weights downloaded at runtime) |
 | Grad-CAM | [pytorch-grad-cam](https://github.com/jacobgil/pytorch-grad-cam) | MIT |
 | Report and chat LLM (default `openai/gpt-oss-120b`, set with `GROQ_MODEL`) | [Groq API](https://console.groq.com/docs/models) | Apache-2.0 model weights; Groq terms of service |
+| Vision-language assessment: image + symptoms → differential (default `qwen/qwen3.8-27b`, set with `GROQ_VISION_MODEL`) | [Groq API](https://console.groq.com/docs/models), open-weight Qwen | Apache-2.0 model weights; Groq terms of service |
 
 Sample images: see [samples/SOURCES.md](samples/SOURCES.md) (CC0, public domain, CC BY / CC BY-SA with attribution, NIH ChestX-ray14).
 
@@ -127,8 +138,8 @@ Sample images: see [samples/SOURCES.md](samples/SOURCES.md) (CC0, public domain,
   - Signing out, or changing a password or role, revokes all refresh tokens.
 - **Abuse protection.** Sign-in and analysis are rate-limited, and an account locks after repeated failed sign-ins. The rate limiter is in-memory, one API process; use a shared store if you scale out.
 - **Access control.**
-  - Roles are Radiologist, Resident and Admin, enforced on every endpoint.
-  - Users see only their own cases; admins see all.
+  - Roles are User and Doctor, enforced on every endpoint (review, reports, compare, training and statistics are doctor-only).
+  - Everyone sees only their own cases.
   - The training pool contains signed, pseudonymous cases.
 - **Uploads.**
   - File type is checked by magic bytes and size is limited.
