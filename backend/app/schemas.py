@@ -85,7 +85,7 @@ class RegisterRequest(BaseModel):
     email: str = Field(max_length=254)
     full_name: str = Field(min_length=2, max_length=120)
     password: str = Field(max_length=128)
-    role: Literal[Role.RADIOLOGIST, Role.RESIDENT] = Role.RADIOLOGIST
+    role: Literal[Role.USER, Role.DOCTOR] = Role.USER
     language: Literal["uz", "en", "ru"] = "uz"
 
     @field_validator("email")
@@ -110,18 +110,6 @@ class ProfileUpdate(BaseModel):
 class PasswordChange(BaseModel):
     current_password: str = Field(max_length=128)
     new_password: str = Field(max_length=128)
-
-
-class AdminUserUpdate(BaseModel):
-    role: Role | None = None
-    is_active: bool | None = None
-    unlock: bool = False
-
-
-class AdminUserOut(UserOut):
-    is_active: bool
-    locked: bool
-    last_login_at: datetime | None
 
 
 # --- Analysis result --------------------------------------------------------------------------
@@ -273,6 +261,49 @@ class PatientRef(BaseModel):
     pseudonym: str
 
 
+class DifferentialItem(BaseModel):
+    name: str
+    probability: int  # estimated percent, 1-90: a model estimate, never a certainty
+    reasoning: str = ""
+
+
+class Assessment(BaseModel):
+    """Multimodal assessment: a vision-language model reads the image, the specialist model
+    outputs and the reported symptoms, and drafts a differential. Estimates, not a diagnosis."""
+
+    audience: Literal["patient", "doctor"]
+    language: Literal["uz", "en", "ru"]
+    model: str
+    summary: str
+    image_observations: list[str] = Field(default_factory=list)
+    differential: list[DifferentialItem] = Field(default_factory=list)
+    causes: list[str] = Field(default_factory=list)
+    urgency: Literal["routine", "soon", "urgent"] = "routine"
+    urgency_text: str = ""
+    next_steps: list[str] = Field(default_factory=list)
+    questions_for_doctor: list[str] = Field(default_factory=list)
+    specialty: str = "general"
+    disclaimer: str = ""
+
+
+class LocalizedText(BaseModel):
+    uz: str
+    en: str
+    ru: str
+
+
+class Hospital(BaseModel):
+    id: str
+    names: LocalizedText
+    city: str
+    specialties: list[str]
+    description: LocalizedText
+    partner: bool = False
+    emergency: bool = False
+    phone: str | None = None
+    website: str | None = None
+
+
 class AnalysisResult(BaseModel):
     case_id: int | None = None
     created_at: datetime
@@ -301,6 +332,12 @@ class AnalysisResult(BaseModel):
     timings_ms: dict[str, int]
     review: Review | None = None
     audit: list[AuditEventOut] = Field(default_factory=list)
+    symptoms: str | None = None
+    patient_age: int | None = None
+    patient_sex: Literal["male", "female"] | None = None
+    assessment: Assessment | None = None
+    assessment_error: str | None = None
+    hospitals: list[Hospital] = Field(default_factory=list)
 
 
 class ReportRequest(BaseModel):
@@ -327,6 +364,7 @@ class CaseSummary(BaseModel):
     reviewer: str | None
     reviewed_at: datetime | None
     error: str | None
+    urgency: Literal["routine", "soon", "urgent"] | None = None  # from the latest assessment
 
 
 class CaseList(BaseModel):

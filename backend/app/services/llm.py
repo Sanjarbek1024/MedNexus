@@ -13,16 +13,20 @@ class LLMUnavailableError(RuntimeError):
 
 
 class LLM:
-    def __init__(self, api_key: str | None, model: str, timeout_s: float) -> None:
+    def __init__(self, api_key: str | None, model: str, timeout_s: float, max_retries: int = 1) -> None:
         self.model = model
-        self._client = Groq(api_key=api_key, timeout=timeout_s, max_retries=1) if api_key else None
+        self._client = Groq(api_key=api_key, timeout=timeout_s, max_retries=max_retries) if api_key else None
 
     @property
     def configured(self) -> bool:
         return self._client is not None
 
     def _options(self) -> dict:
-        return {"reasoning_effort": "low"} if self.model.startswith("openai/gpt-oss") else {}
+        if self.model.startswith("openai/gpt-oss"):
+            return {"reasoning_effort": "low"}
+        if self.model.startswith("qwen/"):
+            return {"reasoning_effort": "none"}  # answer directly, without a thinking trace
+        return {}
 
     def _require_client(self) -> Groq:
         if self._client is None:
@@ -35,6 +39,24 @@ class LLM:
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.2,
+            max_completion_tokens=max_tokens,
+            **self._options(),
+        )
+        return completion.choices[0].message.content or ""
+
+    def image_json_completion(self, system: str, text: str, image_url: str, max_tokens: int = 2048) -> str:
+        """JSON completion over one image (a data URL) plus text, for vision-language models."""
+        completion = self._require_client().chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": [
+                    {"type": "text", "text": text},
+                    {"type": "image_url", "image_url": {"url": image_url}},
+                ]},
             ],
             response_format={"type": "json_object"},
             temperature=0.2,

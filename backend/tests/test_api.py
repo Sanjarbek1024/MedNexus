@@ -23,7 +23,13 @@ def test_capabilities_mark_only_validated_combinations_as_supported(app_client: 
     xray, ct, mri = body["modalities"]
     chest = next(r for r in xray["regions"] if r["id"] == "chest")
     assert {v["id"]: v["supported"] for v in chest["views"]} == {"PA": True, "AP": True, "Lateral": False}
-    assert not ct["supported"] and not mri["supported"]
+    # CT has no specialist model: it is offered with the experimental vision-language assessment only.
+    vision_only = ["DICOM header consistency", "Vision-language assessment only (experimental)"]
+    assert ct["supported"] and all(
+        view["analyzers"] == vision_only for region in ct["regions"] for view in region["views"]
+    )
+    spine = next(r for r in mri["regions"] if r["id"] == "spine")
+    assert all(view["analyzers"] == vision_only for view in spine["views"])
     assert body["default_language"] == "uz"
 
 
@@ -86,7 +92,7 @@ def test_review_flow_is_audited(client: TestClient, sample: Callable[[str], Path
     assert edited["review"]["added_findings"] == ["Edema"]
     assert edited["review"]["finding_decisions"][names[-1]] == "disagree"
     assert [e["action"] for e in edited["audit"]] == [
-        "case_uploaded", "analysis_created", "report_generated", "review_edit",
+        "case_uploaded", "analysis_created", "report_generated", "assessment_generated", "review_edit",
     ]
     assert client.get("/api/audit/verify").json()["valid"] is True
 

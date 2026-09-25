@@ -46,7 +46,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
 
     llm = LLM(settings.groq_api_key, settings.groq_model, settings.groq_timeout_s)
-    service = AnalysisService(AnalysisPipeline(registry), ReportWriter(llm), settings)
+    # Retries wait out per-minute token limits (the client honours Retry-After).
+    vision = LLM(settings.groq_api_key, settings.groq_vision_model, settings.groq_vision_timeout_s, max_retries=3)
+    service = AnalysisService(AnalysisPipeline(registry), ReportWriter(llm), settings, vision)
     queue = AnalysisQueue(service)
     queue.start()
 

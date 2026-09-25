@@ -32,7 +32,9 @@ from app.schemas import (
     StructureOut,
 )
 from app.services import overlays, uploads
+from app.services.assessment import AssessmentUnavailableError, PatientContext, assess
 from app.services.cases import assemble, candidate_labels, latest
+from app.services.llm import LLM
 from app.services.pipeline import AnalysisPipeline, PipelineOutcome, ProgressFn
 from app.services.reporting import ReportWriter
 from app.services.triage import prioritize
@@ -41,10 +43,6 @@ logger = logging.getLogger(__name__)
 
 
 class ReviewNotAllowedError(ValueError):
-    pass
-
-
-class SignOffForbiddenError(PermissionError):
     pass
 
 
@@ -121,10 +119,13 @@ def build_result(image: StudyImage, selection: Selection, outcome: PipelineOutco
 
 
 class AnalysisService:
-    def __init__(self, pipeline: AnalysisPipeline, writer: ReportWriter, settings: Settings) -> None:
+    def __init__(
+        self, pipeline: AnalysisPipeline, writer: ReportWriter, settings: Settings, vision: LLM | None = None
+    ) -> None:
         self.pipeline = pipeline
         self.writer = writer
         self.settings = settings
+        self.vision = vision
 
     @property
     def registry(self):  # noqa: ANN201
@@ -144,6 +145,7 @@ class AnalysisService:
         selection: Selection,
         patient: Patient,
         acquired_at: datetime | None,
+        context: PatientContext | None = None,
     ) -> Case:
         case = Case(
             owner_id=user.id,
@@ -158,6 +160,9 @@ class AnalysisService:
             upload_path=uploads.store(self.settings.uploads_dir, upload),
             thumbnail=overlays.grayscale_jpeg(image, 160, 80),
             acquired_at=acquired_at or utcnow(),
+            symptoms=context.symptoms if context else None,
+            patient_age=context.age if context else None,
+            patient_sex=context.sex if context else None,
         )
         session.add(case)
         session.commit()
@@ -240,6 +245,53 @@ class AnalysisService:
         if not result.rejected:
             progress(Stage.REPORT)
             self._write_report(session, case, result, case.language)
+            self._write_assessment(session, case, result, image, case.language)
+
+    def _write_assessment(
+        self, session: Session, case: Case, result: AnalysisResult, image: StudyImage, language: str
+    ) -> None:
+        """Image + model outputs + symptoms → differential, stored as a report of kind "assessment"."""
+        if self.vision is None:
+            return
+        owner = session.get(User, case.owner_id)
+        audience = "patient" if owner is not None and owner.role == Role.USER else "doctor"
+        context = PatientContext(case.symptoms, case.patient_age, case.patient_sex)
+        started = time.perf_counter()
+        assessment, error = None, None
+        try:
+            assessment = assess(
+                self.vision, result, overlays.grayscale_jpeg(image, 768, 85), context, audience, language
+            )
+        except AssessmentUnavailableError as exc:
+            error = str(exc)
+        except Exception as exc:  # noqa: BLE001 - any LLM or format failure leaves the case usable
+            logger.warning("Assessment of case %s failed: %s", case.id, exc)
+            error = "The assessment is unavailable right now. Please try again."
+        session.add(Report(
+            case_id=case.id,
+            kind="assessment",
+            language=language,
+            model=self.vision.model,
+            error=error,
+            content={
+                **(assessment.model_dump() if assessment else {}),
+                "duration_ms": round((time.perf_counter() - started) * 1000),
+            },
+        ))
+        session.commit()
+        audit.record(session, "assessment_generated", "system", {
+            "language": language,
+            "model": self.vision.model,
+            "audience": audience,
+            "differential": [d.model_dump() for d in assessment.differential] if assessment else None,
+            "error": error,
+        }, case_id=case.id)
+
+    def regenerate_assessment(self, session: Session, case: Case, language: str) -> None:
+        if case.status not in (CaseStatus.AI_READY, CaseStatus.REVIEWED):
+            raise ReviewNotAllowedError("only analyzed images have an assessment")
+        image = decode_upload((self.settings.uploads_dir / case.upload_path).read_bytes(), case.image_sha256)
+        self._write_assessment(session, case, assemble(session, case, with_audit=False), image, language)
 
     def _write_report(self, session: Session, case: Case, result: AnalysisResult, language: str) -> None:
         started = time.perf_counter()
@@ -290,8 +342,6 @@ class AnalysisService:
         session.commit()
 
     def review(self, session: Session, case: Case, request: ReviewRequest, user: User) -> None:
-        if user.role == Role.RESIDENT:
-            raise SignOffForbiddenError("Residents can draft reports; sign-off requires a radiologist.")
         if case.status not in (CaseStatus.AI_READY, CaseStatus.REVIEWED):
             raise ReviewNotAllowedError(
                 "the image was rejected by a safety gate" if case.status == CaseStatus.IMAGE_REJECTED

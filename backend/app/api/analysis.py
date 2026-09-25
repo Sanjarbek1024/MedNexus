@@ -12,12 +12,13 @@ from sqlmodel import Session, select
 from app.analyzers.base import Stage
 from app.api.deps import CurrentUser, Queue, Service, SessionDep, limit
 from app.config import get_settings
-from app.db.models import Patient, Role, User
+from app.db.models import Patient, User
 from app.db.session import get_engine
 from app.imaging import ImageDecodeError, decode_upload
 from app.languages import DEFAULT_LANGUAGE, LANGUAGES
 from app.schemas import AnalysisResult, BatchUploadResult, Selection
 from app.services import uploads
+from app.services.assessment import PatientContext
 from app.services.cases import assemble, summaries
 
 router = APIRouter(tags=["analysis"])
@@ -36,7 +37,7 @@ def resolve_patient(session: Session, user: User, upload: uploads.SanitizedUploa
     """The chosen patient, the patient linked to this DICOM PatientID, or a new pseudonym."""
     if patient_id is not None:
         patient = session.get(Patient, patient_id)
-        if patient is None or (patient.owner_id != user.id and user.role != Role.ADMIN):
+        if patient is None or patient.owner_id != user.id:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Patient not found")
         return patient
     source_hash = None
@@ -80,6 +81,15 @@ async def _read_upload(file: UploadFile) -> tuple[uploads.SanitizedUpload, objec
     return upload, image
 
 
+def _context(symptoms: str | None, age: int | None, sex: str | None) -> PatientContext:
+    symptoms = (symptoms or "").strip()[:2000] or None
+    if age is not None and not 0 <= age <= 120:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Age must be between 0 and 120")
+    if sex not in (None, "", "male", "female"):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Sex must be 'male' or 'female'")
+    return PatientContext(symptoms, age, sex or None)
+
+
 def _acquired(value: date | None) -> datetime | None:
     return datetime.combine(value, time(12), tzinfo=timezone.utc) if value else None
 
@@ -102,6 +112,9 @@ async def analyze(
     language: str = Form(DEFAULT_LANGUAGE),
     patient_id: int | None = Form(None),
     acquired_on: date | None = Form(None),
+    symptoms: str | None = Form(None, max_length=2000, description="What the person reports"),
+    age: int | None = Form(None),
+    sex: str | None = Form(None, description="male | female"),
 ) -> AnalysisResult | StreamingResponse:
     """Upload one study and analyze it immediately.
 
@@ -109,9 +122,10 @@ async def analyze(
     explainability, report) followed by a final ``result`` event.
     """
     selection = _validate_selection(service, modality, region, view, language)
+    context = _context(symptoms, age, sex)
     upload, image = await _read_upload(file)
     patient = resolve_patient(session, user, upload, patient_id)
-    case = service.create_case(session, user, upload, image, selection, patient, _acquired(acquired_on))
+    case = service.create_case(session, user, upload, image, selection, patient, _acquired(acquired_on), context)
     case_id = case.id
 
     def run(progress: Callable[[Stage], None]) -> AnalysisResult:

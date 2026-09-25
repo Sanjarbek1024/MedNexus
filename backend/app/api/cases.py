@@ -9,10 +9,10 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import case as when
 from sqlmodel import Session, col, func, select
 
-from app.api.deps import CurrentUser, LLMDep, Service, SessionDep, limit
+from app.api.deps import CurrentUser, Doctor, LLMDep, Service, SessionDep, limit
 from app.db import audit
 from app.db.audit import as_utc
-from app.db.models import Case, CaseStatus, ChatMessage, Priority, User
+from app.db.models import Case, CaseStatus, ChatMessage, Priority, Role, User
 from app.db.session import get_engine
 from app.schemas import (
     AnalysisResult,
@@ -24,7 +24,7 @@ from app.schemas import (
     ReportSections,
     ReviewRequest,
 )
-from app.services.analysis import ReviewNotAllowedError, SignOffForbiddenError
+from app.services.analysis import ReviewNotAllowedError
 from app.services.assistant import chat_stream
 from app.services.cases import CaseNotFoundError, assemble, get_case, search_filter, summaries, user_names, visible
 
@@ -91,14 +91,12 @@ def get_case_view(case_id: int, user: CurrentUser, session: SessionDep) -> Analy
 
 @router.post("/cases/{case_id}/review", response_model=AnalysisResult)
 def review_case(
-    case_id: int, review: ReviewRequest, user: CurrentUser, session: SessionDep, service: Service
+    case_id: int, review: ReviewRequest, user: Doctor, session: SessionDep, service: Service
 ) -> AnalysisResult:
     """Physician sign-off: confirm, edit or reject the AI draft and finalize the structured report."""
     case = _case(session, case_id, user)
     try:
         service.review(session, case, review, user)
-    except SignOffForbiddenError as exc:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, str(exc)) from exc
     except ReviewNotAllowedError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
     return assemble(session, case)
@@ -106,7 +104,7 @@ def review_case(
 
 @router.put("/cases/{case_id}/report/draft", response_model=AnalysisResult)
 def save_report_draft(
-    case_id: int, body: ReportSections, user: CurrentUser, session: SessionDep, service: Service
+    case_id: int, body: ReportSections, user: Doctor, session: SessionDep, service: Service
 ) -> AnalysisResult:
     case = _case(session, case_id, user)
     try:
@@ -118,12 +116,25 @@ def save_report_draft(
 
 @router.post("/cases/{case_id}/report", response_model=AnalysisResult)
 async def regenerate_report(
-    case_id: int, body: ReportRequest, user: CurrentUser, session: SessionDep, service: Service
+    case_id: int, body: ReportRequest, user: Doctor, session: SessionDep, service: Service
 ) -> AnalysisResult:
     """Rewrite the AI report in another language, from the stored model outputs."""
     case = _case(session, case_id, user)
     try:
         await asyncio.to_thread(service.regenerate_report, session, case, body.language)
+    except ReviewNotAllowedError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+    return assemble(session, case)
+
+
+@router.post("/cases/{case_id}/assessment", response_model=AnalysisResult)
+async def regenerate_assessment(
+    case_id: int, body: ReportRequest, user: CurrentUser, session: SessionDep, service: Service
+) -> AnalysisResult:
+    """Redo the image + symptoms differential, e.g. in another language."""
+    case = _case(session, case_id, user)
+    try:
+        await asyncio.to_thread(service.regenerate_assessment, session, case, body.language)
     except ReviewNotAllowedError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
     return assemble(session, case)
@@ -164,7 +175,8 @@ async def chat(case_id: int, body: ChatRequest, user: CurrentUser, session: Sess
     session.add(ChatMessage(case_id=case_id, user_id=user.id, role="user", content=body.message.strip(), language=body.language))
     session.commit()
     audit.record(session, "chat_question", user.full_name, {"language": body.language}, user_id=user.id, case_id=case_id)
-    tokens = chat_stream(llm, result, history, body.message.strip(), body.language)
+    audience = "patient" if user.role == Role.USER else "doctor"
+    tokens = chat_stream(llm, result, history, body.message.strip(), body.language, audience)
     return StreamingResponse(
         _stream_answer(tokens, case_id, body.language),
         media_type="text/event-stream",

@@ -58,7 +58,7 @@ def require_roles(*roles: Role) -> Callable[[User], User]:
     return check
 
 
-Admin = Annotated[User, Depends(require_roles(Role.ADMIN))]
+Doctor = Annotated[User, Depends(require_roles(Role.DOCTOR))]
 
 
 def client_ip(request: Request) -> str:
