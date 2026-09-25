@@ -52,7 +52,7 @@ Locally (Python 3.11 and Node 22+; SQLite by default; on Windows use `backend\.v
 ```bash
 python3.11 -m venv backend/.venv && backend/.venv/bin/pip install -r backend/requirements-dev.txt
 (cd frontend && npm ci) && cp backend/.env.example backend/.env
-backend/.venv/bin/python scripts/download_samples.py   # public sample images (samples/SOURCES.md)
+backend/.venv/bin/python scripts/download_samples.py   # public sample images (samples/SOURCES.md) and samples/demo/, sorted by category with DICOMs and a README of what to show
 backend/.venv/bin/python scripts/seed_demo.py          # demo accounts and ~15 cases
 backend/.venv/bin/python scripts/dev.py                # http://localhost:5173
 ```

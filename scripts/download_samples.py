@@ -19,7 +19,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import numpy as np
@@ -33,6 +33,8 @@ USER_AGENT = "MedNexus/0.1 (research prototype; sample downloader)"
 COMMONS_API = "https://commons.wikimedia.org/w/api.php"
 NIH_SAMPLE = "https://raw.githubusercontent.com/mlmed/torchxrayvision/main/tests/00000001_000.png"
 DIGITAL_XRAY_STORAGE = "1.2.840.10008.5.1.4.1.1.1.1"  # Digital X-Ray Image Storage - For Presentation
+MR_IMAGE_STORAGE = "1.2.840.10008.5.1.4.1.1.4"
+DEMO_DIR = SAMPLES_DIR / "demo"
 
 
 @dataclass(frozen=True)
@@ -101,28 +103,55 @@ def download(sample: Sample) -> Path:
     return target
 
 
-def write_dicom(source: Path, target: Path) -> None:
-    """Wrap a sample radiograph in a 12-bit DX DICOM file, to demo DICOM support."""
+@dataclass(frozen=True)
+class DerivedDicom:
+    """A sample image wrapped in DICOM, with a fictitious patient that the app anonymizes."""
+
+    filename: str
+    source: str
+    modality: str = "DX"
+    body_part: str = "CHEST"
+    view: str | None = "PA"
+    patient_id: str = "DEMO-0001"
+    patient_name: str = "SAMPLE^DEMO"
+    days_ago: int = 0  # study date; two studies of one patient enable the prior comparison
+
+
+DERIVED_DICOMS = [
+    # One patient, six months apart: normal first, then pneumonia (Compare page).
+    DerivedDicom("chest_pa_normal.dcm", "chest_pa_normal.jpg", days_ago=183),
+    DerivedDicom("chest_pa_pneumonia.dcm", "chest_pa_pneumonia.jpg"),
+    DerivedDicom("wrist_buckle_fracture.dcm", "wrist_buckle_fracture.jpg", body_part="WRIST",
+                 patient_id="DEMO-0002", patient_name="SAMPLE^CHILD"),
+    DerivedDicom("brain_mri_glioma.dcm", "brain_mri_glioma.jpg", modality="MR", body_part="HEAD", view=None,
+                 patient_id="DEMO-0003", patient_name="SAMPLE^BRAIN"),
+]
+
+
+def write_dicom(source: Path, target: Path, spec: DerivedDicom) -> None:
+    """Wrap a sample image in a 12-bit DICOM file, to demo DICOM support and anonymization."""
     pixels = np.asarray(Image.open(source).convert("L"), dtype=np.float32)
     stored = np.round(pixels / 255 * 4095).astype(np.uint16)
+    sop_class = MR_IMAGE_STORAGE if spec.modality == "MR" else DIGITAL_XRAY_STORAGE
 
     meta = FileMetaDataset()
-    meta.MediaStorageSOPClassUID = DIGITAL_XRAY_STORAGE
+    meta.MediaStorageSOPClassUID = sop_class
     meta.MediaStorageSOPInstanceUID = generate_uid()
     meta.TransferSyntaxUID = ExplicitVRLittleEndian
 
     ds = pydicom.Dataset()
     ds.file_meta = meta
-    ds.SOPClassUID = DIGITAL_XRAY_STORAGE
+    ds.SOPClassUID = sop_class
     ds.SOPInstanceUID = meta.MediaStorageSOPInstanceUID
     ds.StudyInstanceUID = generate_uid()
     ds.SeriesInstanceUID = generate_uid()
-    ds.PatientName = "SAMPLE^DEMO"
-    ds.PatientID = "DEMO-0001"
-    ds.StudyDate = date.today().strftime("%Y%m%d")
-    ds.Modality = "DX"
-    ds.BodyPartExamined = "CHEST"
-    ds.ViewPosition = "PA"
+    ds.PatientName = spec.patient_name
+    ds.PatientID = spec.patient_id
+    ds.StudyDate = (date.today() - timedelta(days=spec.days_ago)).strftime("%Y%m%d")
+    ds.Modality = spec.modality
+    ds.BodyPartExamined = spec.body_part
+    if spec.view:
+        ds.ViewPosition = spec.view
     ds.Rows, ds.Columns = stored.shape
     ds.SamplesPerPixel = 1
     ds.PhotometricInterpretation = "MONOCHROME2"
@@ -139,17 +168,126 @@ def write_dicom(source: Path, target: Path) -> None:
     target.write_bytes(buffer.getvalue())
 
 
+@dataclass(frozen=True)
+class DemoItem:
+    """One file of the demo folder, with what to select and type when showing it (in Uzbek)."""
+
+    sample: str
+    name: str  # file name inside the category folder
+    study: str  # what to choose on the Analyze page
+    symptoms: str = ""
+    expected: str = ""
+
+
+CHEST = "Ko'krak qafasi rentgeni / flyuorografiya"
+LIMB = "Qo'l-oyoq rentgeni"
+BRAIN = "Bosh miya MRT"
+
+DEMO = {
+    "1_kokrak_rentgeni_flyuorografiya": [
+        DemoItem("chest_pa_normal.jpg", "01_normal_profilaktik.jpg", CHEST,
+                 "Ishga kirish uchun profilaktik flyuorografiya. Shikoyatim yo'q. (29 yosh, ayol)",
+                 "Topilma yo'q, shoshilinch emas."),
+        DemoItem("chest_pa_pneumonia.jpg", "02_pnevmoniya.jpg", CHEST,
+                 "3 kundan beri yo'tal, harorat 38,5, o'ng tomonda nafas olganda ko'krak og'rig'i. (46 yosh, erkak)",
+                 "Konsolidatsiya / pnevmoniya, issiqlik xaritasi; shifokorlar navbatida 'Shoshilinch'."),
+        DemoItem("chest_pa_heart_failure.jpg", "03_yurak_yetishmovchiligi.jpg", CHEST,
+                 "Oyoqlarim shishadi, zinaga chiqqanda nafasim qisadi, kechasi baland yostiqda uxlayman. (67 yosh, ayol)",
+                 "O'pka xiralashuvi, infiltratsiya; 'E'tibor' darajasi."),
+        DemoItem("chest_nih_00000001_000.png", "04_kardiomegaliya.png", CHEST,
+                 "Tez charchayman, ba'zan yuragim tez uradi. (58 yosh, erkak)",
+                 "Kardiomegaliya 'noaniq' darajada; yurak-ko'krak nisbati o'lchanadi."),
+        DemoItem("chest_pa_normal_2.png", "05_normal_2.png", CHEST, "Shikoyat yo'q, yillik ko'rik.",
+                 "Topilma yo'q."),
+    ],
+    "2_qol_oyoq_sinish": [
+        DemoItem("wrist_buckle_fracture.jpg", "01_bilak_sinishi_bukilma.jpg", LIMB,
+                 "Velosipeddan yiqildi, bilagi shishgan va qimirlatganda og'riyapti. (11 yosh, o'g'il bola)",
+                 "Sinish ~0.81, ramka bilan; 'Shoshilinch'."),
+        DemoItem("wrist_salter_harris_fracture.jpg", "02_bilak_sinishi_salter_harris.jpg", LIMB,
+                 "Futbolda qo'liga yiqildi, bilak sohasi og'riydi. (13 yosh, o'g'il bola)",
+                 "Sinish ~0.76, ramka bilan."),
+        DemoItem("wrist_greenstick_fracture.jpg", "03_bilak_sinishi_yashil_novda.jpg", LIMB,
+                 "Daraxtdan yiqildi, bilagi biroz qiyshaygandek. (8 yosh, qiz bola)",
+                 "Sinish ~0.47, 'noaniq' daraja: shifokor tekshiruvi kerakligini ko'rsatish uchun."),
+        DemoItem("hand_xray.jpg", "04_qol_panjasi_normal.jpg", LIMB,
+                 "Eshikka qisib oldim, barmoqlarim og'riyapti. (35 yosh, erkak)",
+                 "Normal qo'l; AI ~0.52 soxta sinish ko'rsatishi mumkin: nega shifokor kerakligining misoli."),
+    ],
+    "3_miya_mrt": [
+        DemoItem("brain_mri_glioma.jpg", "01_glioma.jpg", BRAIN,
+                 "2 oydan beri bosh og'rig'i, ertalab kuchayadi, ko'ngil aynishi va ko'rish xiralashishi. (52 yosh, ayol)",
+                 "Glioma ~0.96; neyroxirurgiyaga yo'naltirish."),
+        DemoItem("brain_mri_meningioma.jpg", "02_meningioma.jpg", BRAIN,
+                 "Yarim yildan beri bosh og'rig'i, oxirgi paytda xotira pasaygandek. (61 yosh, ayol)",
+                 "Meningioma ~0.95."),
+        DemoItem("brain_mri_pituitary.jpg", "03_gipofiz_osmasi.jpg", BRAIN,
+                 "Ko'rish maydoni torayganday, bosh og'riydi, poyabzal razmerim kattalashdi. (44 yosh, erkak)",
+                 "Gipofiz o'smasi ~0.96."),
+        DemoItem("brain_mri_normal.jpg", "04_normal_miya.jpg", BRAIN,
+                 "Ba'zan charchoqdan bosh og'rig'i bo'ladi. (30 yosh, ayol)",
+                 "O'sma topilmadi (~0.98 'o'sma yo'q')."),
+    ],
+    "4_dicom": [
+        DemoItem("chest_pa_normal.dcm", "01_kokrak_normal_6_oy_oldin.dcm", CHEST,
+                 "Profilaktik ko'rik. Shifokor sifatida yuklang va 'Tekshiruv sanasi'ga 6 oy oldingi sanani qo'ying.",
+                 "DICOM o'qiladi va anonimlashtiriladi (ism va sana o'chiriladi); bemor faqat PX-... taxallusi bilan ko'rinadi."),
+        DemoItem("chest_pa_pneumonia.dcm", "02_kokrak_pnevmoniya_bugun.dcm", CHEST,
+                 "3 kundan beri yo'tal va harorat 38,5.",
+                 "O'sha bemor (bir xil PatientID): 'Solishtirish' sahifasida ikkala tekshiruv yonma-yon, o'zgarishlar jadvali bilan."),
+        DemoItem("wrist_buckle_fracture.dcm", "03_bilak_sinishi.dcm", LIMB,
+                 "Yiqilgandan keyin bilak og'rig'i.", "DICOM sarlavhasi (WRIST) qo'l-oyoq tanloviga mos keladi."),
+        DemoItem("brain_mri_glioma.dcm", "04_miya_mrt_glioma.dcm", BRAIN,
+                 "Bosh og'rig'i va ko'ngil aynishi.", "MR DICOM, HEAD; glioma ~0.96."),
+    ],
+    "5_rad_etiladigan_rasmlar": [
+        DemoItem("photo_kitten.jpg", "01_mushuk_rasmi.jpg", CHEST, "",
+                 "'Rasm rad etildi': rangli fotosurat, tibbiy rasm emas."),
+        DemoItem("knee_xray.jpg", "02_tizza_kokrak_deb.jpg", CHEST, "",
+                 "Ko'krak deb yuklansa rad etiladi: ko'krak anatomiyasi topilmadi."),
+    ],
+}
+
+
+def make_demo_folder() -> None:
+    """Copy the samples into samples/demo/<category>/ with a README of what to show."""
+    lines = [
+        "MedNexus demo rasmlari",
+        "======================",
+        "",
+        "Har bir rasm uchun: 'Yangi tahlil' sahifasida qaysi turni tanlash, 'Simptomlar'",
+        "maydoniga nima yozish va qanday natija kutish. Kirish: user@mednexus.uz yoki",
+        "doctor@mednexus.uz, parol MedNexus-Demo-2026.",
+        "",
+        "Barcha rasmlar ochiq litsenziyali (samples/SOURCES.md). DICOM fayllardagi bemor",
+        "ma'lumotlari to'qima (SAMPLE^DEMO) va yuklashda o'chiriladi.",
+    ]
+    for folder, items in DEMO.items():
+        target_dir = DEMO_DIR / folder
+        target_dir.mkdir(parents=True, exist_ok=True)
+        lines += ["", "", folder, "-" * len(folder)]
+        for item in items:
+            (target_dir / item.name).write_bytes((SAMPLES_DIR / item.sample).read_bytes())
+            lines += ["", item.name, f"  Tur:        {item.study}"]
+            if item.symptoms:
+                lines.append(f"  Simptomlar: {item.symptoms}")
+            lines.append(f"  Kutiladi:   {item.expected}")
+    (DEMO_DIR / "README.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def main() -> None:
     SAMPLES_DIR.mkdir(exist_ok=True)
     for sample in SAMPLES:
         path = download(sample)
         print(f"  {path.name:32} {path.stat().st_size // 1024:>6} KB")
 
-    dicom = SAMPLES_DIR / "chest_pa_normal.dcm"
-    if not dicom.exists():
-        write_dicom(SAMPLES_DIR / "chest_pa_normal.jpg", dicom)
-    print(f"  {dicom.name:32} {dicom.stat().st_size // 1024:>6} KB  (derived DICOM)")
-    print(f"Samples are in {SAMPLES_DIR}")
+    for spec in DERIVED_DICOMS:
+        dicom = SAMPLES_DIR / spec.filename
+        if not dicom.exists():
+            write_dicom(SAMPLES_DIR / spec.source, dicom, spec)
+        print(f"  {dicom.name:32} {dicom.stat().st_size // 1024:>6} KB  (derived DICOM)")
+    make_demo_folder()
+    print(f"Samples are in {SAMPLES_DIR}; the demo folder with instructions is {DEMO_DIR}")
 
 
 if __name__ == "__main__":
