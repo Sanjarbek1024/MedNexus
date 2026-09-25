@@ -56,6 +56,10 @@ SAMPLES = [
     Sample("hand_xray.jpg", "X-ray of normal hand by dorsoplantar projection.jpg"),
     Sample("knee_xray.jpg", "X-ray of a normal knee by anteroposterior projection.jpg"),
     Sample("photo_kitten.jpg", "A curious kitten (Pixabay).jpg", max_width=1280),
+    Sample("brain_mri_glioma.jpg", "Glioblastoma multiforme - MRT T1KM ax.jpg"),
+    Sample("brain_mri_meningioma.jpg", "Huge Meningioma.jpg"),
+    Sample("brain_mri_pituitary.jpg", "Acromegaly pituitary macroadenoma.JPEG"),
+    Sample("brain_mri_normal.jpg", "MRI Brain T2 Axial (12).jpg"),
 ]
 
 

@@ -23,10 +23,10 @@ RUN useradd --create-home --home-dir /home/mednexus --uid 1000 mednexus \
 USER mednexus
 ENV HOME=/home/mednexus
 
-# Model weights first, in their own layer, so code changes do not re-download ~670 MB. They land
+# Model weights first, in their own layer, so code changes do not re-download ~1 GB. They land
 # in the runtime user's ~/.torchxrayvision, where the app's loaders find them.
 COPY analyzers.yaml ./
-RUN python -c "import pathlib, urllib.request, yaml, torchxrayvision as xrv; xrv.models.DenseNet(weights='densenet121-res224-all'); xrv.models.ResNet(weights='resnet50-res512-all'); xrv.baseline_models.chestx_det.PSPNet(); xrv.autoencoders.ResNetAE(weights='101-elastic'); url = next(a['params']['weights_url'] for a in yaml.safe_load(open('analyzers.yaml'))['analyzers'] if 'weights_url' in a.get('params', {})); urllib.request.urlretrieve(url, pathlib.Path(xrv.utils.get_cache_dir()) / url.rsplit('/', 1)[1])"
+RUN python -c "import pathlib, urllib.request, yaml, torchxrayvision as xrv; xrv.models.DenseNet(weights='densenet121-res224-all'); xrv.models.ResNet(weights='resnet50-res512-all'); xrv.baseline_models.chestx_det.PSPNet(); xrv.autoencoders.ResNetAE(weights='101-elastic'); params = [a['params'] for a in yaml.safe_load(open('analyzers.yaml'))['analyzers'] if 'weights_url' in a.get('params', {})]; [urllib.request.urlretrieve(p['weights_url'], pathlib.Path(xrv.utils.get_cache_dir()) / (p.get('weights_file') or p['weights_url'].rsplit('/', 1)[1])) for p in params]"
 
 # Migrations run at startup, so the image needs them next to the app.
 COPY alembic.ini ./

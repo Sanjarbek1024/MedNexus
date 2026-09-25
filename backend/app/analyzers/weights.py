@@ -13,13 +13,14 @@ import torchxrayvision as xrv
 logger = logging.getLogger(__name__)
 
 
-def ensure_weights(url: str) -> Path:
+def ensure_weights(url: str, filename: str | None = None) -> Path:
     """Place a weight file in the model cache (torchxrayvision's cache directory).
 
-    Downloads to a temporary name first, so an interrupted download never leaves a corrupt
-    file where a loader would trust it.
+    ``filename`` names the cached file when the URL ends in a generic name (for example a
+    Hugging Face ``model.safetensors``). Downloads to a temporary name first, so an interrupted
+    download never leaves a corrupt file where a loader would trust it.
     """
-    target = Path(xrv.utils.get_cache_dir()) / Path(urlparse(url).path).name
+    target = Path(xrv.utils.get_cache_dir()) / (filename or Path(urlparse(url).path).name)
     if target.is_file():
         return target
     target.parent.mkdir(parents=True, exist_ok=True)

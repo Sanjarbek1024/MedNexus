@@ -68,6 +68,13 @@ analyzers:
       thresholds: {report: 0.50, moderate: 0.60, high: 0.70}
       explain_top_k: 3
 
+  # --- Vision-language only (experimental) ------------------------------------------------
+  # CT studies and MRI outside the head have no specialist model yet: the image goes only to
+  # the vision-language assessment, with a visible "experimental" warning.
+  - id: vision_language_only
+    class: app.analyzers.vision_only:VisionLanguageOnly
+    applies_to: [{modality: ct}, {modality: mri, region: chest}, {modality: mri, region: abdomen}, {modality: mri, region: spine}]
+
   # --- Extremity X-ray -------------------------------------------------------------------
   # Refuses chest radiographs submitted as extremity studies (reuses the chest anatomy model).
   - id: extremity_region_gate
@@ -86,3 +93,26 @@ analyzers:
       weights_url: https://github.com/mdciri/YOLOv7-Bone-Fracture-Detection/releases/download/trained-models/yolov7-p6-bonefracture.onnx
       thresholds: {report: 0.40, moderate: 0.55, high: 0.70}
 
+  # --- Brain MRI -------------------------------------------------------------------------
+  # Same rule-based gate as for X-rays (rejects colour photos, blank or tiny images); MRI
+  # slices are often 256 px, so the resolution limits are lower.
+  - id: brain_mri_quality
+    class: app.analyzers.quality:ImageQualityGate
+    applies_to: [{modality: mri, region: head}]
+    params:
+      min_side_px: 128
+      recommended_side_px: 256
+
+  # ViT-B/16 fine-tuned on 2D brain MRI slices (Hemg/Brain-Tumor-Classification, Apache-2.0),
+  # four classes: glioma, meningioma, pituitary tumor, no tumor. The label set matches the
+  # public Kaggle "Brain Tumor MRI Dataset" (mostly contrast-enhanced T1 slices; the card does
+  # not name its data). One slice at a time, no localization; it cannot tell other lesions
+  # from these classes. On the bundled samples: glioma 0.96, meningioma 0.95, pituitary 0.96,
+  # normal "No tumor" 0.98; a T2-weighted glioblastoma scored as meningioma (0.81).
+  - id: brain_mri_tumor
+    class: app.analyzers.brain_mri.tumor:BrainTumorClassifier
+    applies_to: [{modality: mri, region: head, views: [Axial, Coronal, Sagittal]}]
+    params:
+      weights_url: https://huggingface.co/Hemg/Brain-Tumor-Classification/resolve/4b71d94edf9803761d24020936eef6d4deac15ab/model.safetensors
+      weights_file: brain-tumor-vit-b16.safetensors
+      thresholds: {report: 0.50, moderate: 0.70, high: 0.90}
