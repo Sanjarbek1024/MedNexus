@@ -2,6 +2,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronDown } from "lucide-react";
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 
+import { useI18n } from "../i18n";
+
 export interface Option {
   id: string;
   label: string;
@@ -17,6 +19,7 @@ interface Props {
 
 /** Listbox that keeps unsupported choices visible but disabled, with a "Coming soon" badge. */
 export function StudySelect({ label, value, options, onChange }: Props) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [cursor, setCursor] = useState(0);
   const root = useRef<HTMLDivElement>(null);
@@ -82,7 +85,7 @@ export function StudySelect({ label, value, options, onChange }: Props) {
           open ? "border-emerald-400 ring-4 ring-emerald-100" : "border-slate-200 hover:border-slate-300"
         }`}
       >
-        {selected?.label ?? "Select"}
+        {selected?.label ?? "—"}
         <ChevronDown className={`size-4 text-slate-400 transition ${open ? "rotate-180" : ""}`} />
       </button>
 
@@ -118,9 +121,7 @@ export function StudySelect({ label, value, options, onChange }: Props) {
                 <span className="flex items-center gap-2">
                   {option.label}
                   {!option.supported && (
-                    <span className="chip bg-slate-100 text-[10px] font-bold tracking-wide text-slate-500 uppercase">
-                      Coming soon
-                    </span>
+                    <span className="chip bg-slate-100 text-[10px] font-bold tracking-wide text-slate-500 uppercase">{t("analyze.comingSoon")}</span>
                   )}
                 </span>
                 {option.id === value && <Check className="size-4 text-emerald-600" />}

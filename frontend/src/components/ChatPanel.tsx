@@ -1,0 +1,161 @@
+import { motion } from "framer-motion";
+import { Bot, LoaderCircle, MessagesSquare, SendHorizontal, Sparkles, X } from "lucide-react";
+import { Fragment, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+
+import { useI18n } from "../i18n";
+import { api, type AnalysisResult, type ChatMessage } from "../lib/api";
+import { Drawer } from "./ui";
+
+/** Minimal, safe rendering of the assistant's markdown: paragraphs, bullets and **bold**. */
+function RichText({ text }: { text: string }) {
+  const inline = (line: string): ReactNode[] =>
+    line.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+      part.startsWith("**") && part.endsWith("**") ? <strong key={i}>{part.slice(2, -2)}</strong> : <Fragment key={i}>{part}</Fragment>,
+    );
+  const blocks = text.split(/\n{2,}/);
+  return (
+    <div className="space-y-2">
+      {blocks.map((block, i) => {
+        const lines = block.split("\n").filter(Boolean);
+        if (lines.length && lines.every((l) => /^\s*([-*•]|\d+\.)\s+/.test(l))) {
+          return (
+            <ul key={i} className="space-y-1">
+              {lines.map((l, j) => (
+                <li key={j} className="flex gap-2"><span className="mt-2 size-1 shrink-0 rounded-full bg-emerald-500" /><span>{inline(l.replace(/^\s*([-*•]|\d+\.)\s+/, ""))}</span></li>
+              ))}
+            </ul>
+          );
+        }
+        return <p key={i}>{lines.map((l, j) => <Fragment key={j}>{j > 0 && <br />}{inline(l.replace(/^#+\s*/, ""))}</Fragment>)}</p>;
+      })}
+    </div>
+  );
+}
+
+export function ChatPanel({ result, open, onClose }: { result: AnalysisResult; open: boolean; onClose: () => void }) {
+  const { t, list, language } = useI18n();
+  const [messages, setMessages] = useState<ChatMessage[] | null>(null);
+  const [draft, setDraft] = useState("");
+  const [streaming, setStreaming] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const scroller = useRef<HTMLDivElement>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (!open || messages) return;
+    api.chatHistory(result.case_id).then(setMessages, () => setMessages([]));
+  }, [open, messages, result.case_id]);
+
+  useEffect(() => {
+    scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
+  }, [messages, streaming]);
+
+  useEffect(() => {
+    if (open) window.setTimeout(() => input.current?.focus(), 300);
+  }, [open]);
+
+  const send = async (text: string) => {
+    const message = text.trim();
+    if (!message || streaming !== null) return;
+    setDraft("");
+    setError(null);
+    const now = new Date().toISOString();
+    setMessages((all) => [...(all ?? []), { id: -Date.now(), role: "user", content: message, language, author: null, created_at: now }]);
+    setStreaming("");
+    let answer = "";
+    try {
+      await api.chat(result.case_id, message, language, (token) => {
+        answer += token;
+        setStreaming(answer);
+      });
+      setMessages((all) => [...(all ?? []), { id: Date.now(), role: "assistant", content: answer, language, author: null, created_at: new Date().toISOString() }]);
+    } catch (e) {
+      setError((e as Error).message || t("chat.unavailable"));
+    } finally {
+      setStreaming(null);
+    }
+  };
+
+  const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      send(draft);
+    }
+  };
+
+  const empty = messages !== null && messages.length === 0 && streaming === null;
+
+  return (
+    <Drawer open={open} onClose={onClose} label={t("chat.title")}>
+      <div className="flex items-start justify-between gap-4 border-b border-slate-200/70 px-6 py-5">
+        <div className="flex items-start gap-3">
+          <div className="flex size-10 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-glow"><MessagesSquare className="size-5" /></div>
+          <div>
+            <h2 className="text-lg font-bold text-ink">{t("chat.title")}</h2>
+            <p className="text-xs text-slate-500">{t("chat.subtitle")}</p>
+          </div>
+        </div>
+        <button type="button" onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100" aria-label={t("common.close")}><X className="size-5" /></button>
+      </div>
+
+      <div ref={scroller} className="flex-1 space-y-4 overflow-y-auto px-6 py-5" aria-live="polite">
+        {messages === null && <div className="flex justify-center py-10 text-slate-400"><LoaderCircle className="size-6 animate-spin" /></div>}
+        {empty && (
+          <div className="flex flex-col items-center gap-4 py-8 text-center">
+            <Sparkles className="size-8 text-emerald-500" />
+            <p className="max-w-sm text-sm text-slate-500">{t("chat.empty")}</p>
+          </div>
+        )}
+        {messages?.map((m) => (
+          <motion.div key={m.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+            {m.role === "user" ? (
+              <div className="max-w-[85%] rounded-2xl rounded-br-md bg-emerald-600 px-4 py-2.5 text-sm whitespace-pre-wrap text-white shadow-sm">{m.content}</div>
+            ) : (
+              <div className="flex max-w-[92%] gap-2">
+                <div className="mt-1 flex size-7 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-600 ring-1 ring-slate-200"><Bot className="size-4" /></div>
+                <div className="rounded-2xl rounded-tl-md bg-white px-4 py-3 text-sm leading-relaxed text-slate-700 shadow-sm ring-1 ring-slate-200/70"><RichText text={m.content} /></div>
+              </div>
+            )}
+          </motion.div>
+        ))}
+        {streaming !== null && (
+          <div className="flex max-w-[92%] gap-2">
+            <div className="mt-1 flex size-7 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-600 ring-1 ring-slate-200"><Bot className="size-4" /></div>
+            <div className="rounded-2xl rounded-tl-md bg-white px-4 py-3 text-sm leading-relaxed text-slate-700 shadow-sm ring-1 ring-slate-200/70">
+              {streaming ? <RichText text={streaming} /> : <span className="flex items-center gap-2 text-slate-400"><LoaderCircle className="size-4 animate-spin" /> {t("chat.thinking")}</span>}
+            </div>
+          </div>
+        )}
+        {error && <div role="alert" className="rounded-xl bg-rose-50 px-3 py-2.5 text-sm text-rose-700 ring-1 ring-rose-200">{error}</div>}
+      </div>
+
+      <div className="border-t border-slate-200/70 bg-white/70 px-6 py-4">
+        {(empty || (messages?.length ?? 0) < 2) && (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {list<string>("chat.suggestions").map((s) => (
+              <button key={s} type="button" disabled={streaming !== null} onClick={() => send(s)} className="chip bg-emerald-50 py-1.5 text-emerald-800 ring-1 ring-emerald-200 transition hover:bg-emerald-100">
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="flex items-end gap-2">
+          <textarea
+            ref={input}
+            rows={2}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder={t("chat.placeholder")}
+            className="field resize-none"
+            aria-label={t("chat.placeholder")}
+          />
+          <button type="button" onClick={() => send(draft)} disabled={!draft.trim() || streaming !== null} className="btn-primary h-11 w-11 shrink-0 rounded-xl p-0" aria-label={t("chat.send")}>
+            {streaming !== null ? <LoaderCircle className="size-4 animate-spin" /> : <SendHorizontal className="size-4" />}
+          </button>
+        </div>
+        <p className="mt-2 text-[11px] text-slate-400">{t("chat.note")}</p>
+      </div>
+    </Drawer>
+  );
+}

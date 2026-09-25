@@ -223,13 +223,14 @@ class PathologyEnsemble(Analyzer):
 
     def _agreement_check(self, raw: dict[str, dict[str, float]], ensemble: dict[str, float]) -> SafetyCheck:
         """Warns when one model is confident (>= moderate) while another is negative (< report)."""
-        conflicts = []
+        conflicts, names = [], []
         for label in self.shared:
             scores = {m.weights: raw[m.weights][label] for m in self._members}
             if max(scores.values()) >= self.moderate_threshold and min(scores.values()) < self.report_threshold:
                 versus = " vs ".join(f"{MODEL_LABELS.get(w, w)} {s:.2f}" for w, s in scores.items())
                 status = "reported as uncertain" if ensemble[label] >= self.report_threshold else "not reported"
                 conflicts.append(f"{label} ({versus}; {status})")
+                names.append(label)
         if not conflicts:
             return SafetyCheck(
                 "model_agreement", CheckCategory.AGREEMENT, "Model agreement", CheckStatus.PASS,
@@ -238,7 +239,7 @@ class PathologyEnsemble(Analyzer):
         return SafetyCheck(
             "model_agreement", CheckCategory.AGREEMENT, "Model agreement", CheckStatus.WARN,
             "The models clearly disagree on " + "; ".join(conflicts) + ". Review these areas.",
-            code="agreement_warn", params={"items": "; ".join(conflicts)},
+            code="agreement_warn", params={"items": ", ".join(names)},
         )
 
     def _grad_cam(self, features: dict[str, torch.Tensor], labels: list[str]) -> list[np.ndarray]:

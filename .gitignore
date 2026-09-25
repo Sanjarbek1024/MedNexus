@@ -28,3 +28,7 @@ samples/*
 Thumbs.db
 .vscode/
 .idea/
+
+# End-to-end test output
+frontend/test-results/
+frontend/playwright-report/

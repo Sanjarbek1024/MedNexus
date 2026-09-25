@@ -1,33 +1,102 @@
 import { MotionConfig, motion } from "framer-motion";
+import { LoaderCircle } from "lucide-react";
+import { lazy, Suspense, useEffect } from "react";
 
-import { Header } from "./components/Header";
-import { usePath } from "./lib/router";
-import { AnalyzePage } from "./pages/AnalyzePage";
-import { CasePage } from "./pages/CasePage";
-import { HistoryPage } from "./pages/HistoryPage";
+import { AppShell } from "./components/AppShell";
+import { useAuth } from "./lib/auth";
+import { navigate, useLocation } from "./lib/router";
+import { AuthPage } from "./pages/AuthPage";
+import { LandingPage } from "./pages/LandingPage";
 
-function route(path: string) {
-  const caseMatch = /^\/cases\/(\d+)$/.exec(path);
-  if (caseMatch) return <CasePage caseId={Number(caseMatch[1])} />;
-  if (path === "/history") return <HistoryPage />;
-  return <AnalyzePage />;
+// Pages load as separate chunks; the landing and sign-in pages ship in the main bundle.
+const AnalyzePage = lazy(() => import("./pages/AnalyzePage").then((m) => ({ default: m.AnalyzePage })));
+const CasePage = lazy(() => import("./pages/CasePage").then((m) => ({ default: m.CasePage })));
+const ComparePage = lazy(() => import("./pages/ComparePage").then((m) => ({ default: m.ComparePage })));
+const DashboardPage = lazy(() => import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage })));
+const MonitorPage = lazy(() => import("./pages/MonitorPage").then((m) => ({ default: m.MonitorPage })));
+const ReportPage = lazy(() => import("./pages/ReportPage").then((m) => ({ default: m.ReportPage })));
+const SettingsPage = lazy(() => import("./pages/SettingsPage").then((m) => ({ default: m.SettingsPage })));
+const TrainingPage = lazy(() => import("./pages/TrainingPage").then((m) => ({ default: m.TrainingPage })));
+const WorklistPage = lazy(() => import("./pages/WorklistPage").then((m) => ({ default: m.WorklistPage })));
+
+function Redirect({ to }: { to: string }) {
+  useEffect(() => navigate(to, { replace: true }), [to]);
+  return null;
 }
 
-export default function App() {
-  const path = usePath();
+function Splash() {
   return (
-    <MotionConfig reducedMotion="user">
-      <div className="min-h-screen">
-        <Header path={path} />
-        <motion.main
+    <div className="flex min-h-screen items-center justify-center text-slate-400">
+      <LoaderCircle className="size-8 animate-spin" />
+    </div>
+  );
+}
+
+function appPage(path: string, query: URLSearchParams, admin: boolean) {
+  const caseMatch = /^\/cases\/(\d+)$/.exec(path);
+  if (caseMatch) return <CasePage caseId={Number(caseMatch[1])} />;
+  switch (path) {
+    case "/dashboard":
+      return <DashboardPage />;
+    case "/worklist":
+      return <WorklistPage />;
+    case "/analyze":
+      return <AnalyzePage />;
+    case "/compare":
+      return <ComparePage query={query} />;
+    case "/training":
+      return <TrainingPage />;
+    case "/monitor":
+      return admin ? <MonitorPage /> : <Redirect to="/dashboard" />;
+    case "/settings":
+      return <SettingsPage />;
+    case "/history":
+      return <Redirect to="/worklist" />;
+    default:
+      return <Redirect to="/dashboard" />;
+  }
+}
+
+function Routes() {
+  const { user, ready } = useAuth();
+  const { path, query } = useLocation();
+
+  if (path === "/") return <LandingPage />;
+  if (!ready) return <Splash />;
+  if (path === "/signin" || path === "/signup") {
+    return user ? <Redirect to={query.get("next") ?? "/dashboard"} /> : <AuthPage mode={path === "/signin" ? "signin" : "signup"} />;
+  }
+  if (!user) return <Redirect to={`/signin?next=${encodeURIComponent(path + window.location.search)}`} />;
+
+  const reportMatch = /^\/cases\/(\d+)\/report$/.exec(path);
+  if (reportMatch) {
+    return (
+      <Suspense fallback={<Splash />}>
+        <ReportPage caseId={Number(reportMatch[1])} />
+      </Suspense>
+    );
+  }
+
+  return (
+    <AppShell path={path}>
+      <Suspense fallback={<div className="flex justify-center py-32 text-slate-400"><LoaderCircle className="size-7 animate-spin" /></div>}>
+        <motion.div
           key={path}
-          initial={{ opacity: 0, y: 12 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
         >
-          {route(path)}
-        </motion.main>
-      </div>
+          {appPage(path, query, user.role === "admin")}
+        </motion.div>
+      </Suspense>
+    </AppShell>
+  );
+}
+
+export default function App() {
+  return (
+    <MotionConfig reducedMotion="user">
+      <Routes />
     </MotionConfig>
   );
 }

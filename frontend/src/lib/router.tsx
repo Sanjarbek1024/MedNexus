@@ -2,17 +2,23 @@ import { useEffect, useState, type AnchorHTMLAttributes, type MouseEvent } from 
 
 const CHANGE = "mednexus:navigate";
 
-export function navigate(to: string): void {
-  if (to === window.location.pathname) return;
-  window.history.pushState(null, "", to);
+export function navigate(to: string, { replace = false } = {}): void {
+  if (to === window.location.pathname + window.location.search) return;
+  window.history[replace ? "replaceState" : "pushState"](null, "", to);
   window.dispatchEvent(new Event(CHANGE));
   window.scrollTo({ top: 0 });
 }
 
-export function usePath(): string {
-  const [path, setPath] = useState(window.location.pathname);
+export interface Location {
+  path: string;
+  query: URLSearchParams;
+}
+
+export function useLocation(): Location {
+  const read = () => ({ path: window.location.pathname, query: new URLSearchParams(window.location.search) });
+  const [location, setLocation] = useState<Location>(read);
   useEffect(() => {
-    const update = () => setPath(window.location.pathname);
+    const update = () => setLocation(read());
     window.addEventListener("popstate", update);
     window.addEventListener(CHANGE, update);
     return () => {
@@ -20,7 +26,7 @@ export function usePath(): string {
       window.removeEventListener(CHANGE, update);
     };
   }, []);
-  return path;
+  return location;
 }
 
 export function Link({ href, onClick, ...props }: AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) {
