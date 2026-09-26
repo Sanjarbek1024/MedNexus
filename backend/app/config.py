@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     groq_vision_timeout_s: float = 60.0
 
     registry_path: Path = BACKEND_DIR / "analyzers.yaml"
+    # Model weights live inside the project (backend/weights), so the folder deploys as one unit.
+    weights_dir: Path = BACKEND_DIR / "weights"
     data_dir: Path = BACKEND_DIR / "data"
     database_url: str | None = None  # default: SQLite file in data_dir
     device: str = "auto"

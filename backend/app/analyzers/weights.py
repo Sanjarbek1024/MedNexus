@@ -10,11 +10,22 @@ from urllib.parse import urlparse
 
 import torchxrayvision as xrv
 
+from app.config import get_settings
+
 logger = logging.getLogger(__name__)
 
 
+def _project_cache_dir() -> str:
+    return str(get_settings().weights_dir) + "/"
+
+
+# torchxrayvision keeps weights in ~/.torchxrayvision; point it (and our own downloads) at the
+# project's weights folder instead, so a copied or deployed folder needs no other files.
+xrv.utils.get_cache_dir = _project_cache_dir
+
+
 def ensure_weights(url: str, filename: str | None = None) -> Path:
-    """Place a weight file in the model cache (torchxrayvision's cache directory).
+    """Place a weight file in the project's weights folder (WEIGHTS_DIR, default backend/weights).
 
     ``filename`` names the cached file when the URL ends in a generic name (for example a
     Hugging Face ``model.safetensors``). Downloads to a temporary name first, so an interrupted
