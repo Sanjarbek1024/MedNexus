@@ -68,6 +68,7 @@ class Health(BaseModel):
     database: str
     analyzers: list[AnalyzerStatus]
     llm: LLMStatus
+    vision: LLMStatus | None = None  # vision-language model of the image + symptoms assessment
 
 
 # --- Auth & users -----------------------------------------------------------------------------

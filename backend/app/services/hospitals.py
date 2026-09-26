@@ -19,9 +19,9 @@ FINDING_SPECIALTY = {
     "Pituitary tumor": "neurosurgery",
     "Mass": "oncology",
     "Nodule": "oncology",
-    "Lung Lesion": "oncology",
+    "Lung lesion": "oncology",
     "Cardiomegaly": "cardiology",
-    "Enlarged Cardiomediastinum": "cardiology",
+    "Enlarged cardiomediastinum": "cardiology",
 }
 
 

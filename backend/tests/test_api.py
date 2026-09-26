@@ -16,6 +16,7 @@ def test_health_is_public(app_client: TestClient) -> None:
     assert body["database"] in {"sqlite", "postgresql"}
     assert {a["id"] for a in body["analyzers"]} >= {"chest_xray_pathology", "chest_xray_ood"}
     assert body["llm"]["configured"] is False
+    assert body["vision"]["model"] and body["vision"]["configured"] is False
 
 
 def test_capabilities_mark_only_validated_combinations_as_supported(app_client: TestClient) -> None:
@@ -23,13 +24,16 @@ def test_capabilities_mark_only_validated_combinations_as_supported(app_client: 
     xray, ct, mri = body["modalities"]
     chest = next(r for r in xray["regions"] if r["id"] == "chest")
     assert {v["id"]: v["supported"] for v in chest["views"]} == {"PA": True, "AP": True, "Lateral": False}
-    # CT has no specialist model: it is offered with the experimental vision-language assessment only.
-    vision_only = ["DICOM header consistency", "Vision-language assessment only (experimental)"]
-    assert ct["supported"] and all(
-        view["analyzers"] == vision_only for region in ct["regions"] for view in region["views"]
-    )
-    spine = next(r for r in mri["regions"] if r["id"] == "spine")
-    assert all(view["analyzers"] == vision_only for view in spine["views"])
+    # No specialist model covers CT yet, so every CT combination shows as "coming soon".
+    assert not ct["supported"]
+    assert not any(view["supported"] for region in ct["regions"] for view in region["views"])
+    # MRI is supported for the head only, through the brain tumor classifier.
+    assert {r["id"]: r["supported"] for r in mri["regions"]} == {
+        "chest": False, "head": True, "abdomen": False, "spine": False, "extremity": False,
+    }
+    head = next(r for r in mri["regions"] if r["id"] == "head")
+    assert all(view["supported"] for view in head["views"])
+    assert "Brain tumor classifier (ViT-B/16, brain MRI)" in head["views"][0]["analyzers"]
     assert body["default_language"] == "uz"
 
 
@@ -40,6 +44,7 @@ def test_analysis_requires_sign_in(app_client: TestClient, sample: Callable[[str
 
 def test_unsupported_study_type_is_refused(client: TestClient, sample: Callable[[str], Path]) -> None:
     assert upload(client, sample("chest_pa_normal.jpg"), view="Lateral").status_code == 422
+    assert upload(client, sample("chest_pa_normal.jpg"), modality="ct", view="Axial").status_code == 422
 
 
 def test_rejected_image_returns_no_findings(client: TestClient, sample: Callable[[str], Path]) -> None:

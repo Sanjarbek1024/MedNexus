@@ -91,7 +91,12 @@ def test_refresh_rotates_and_logout_revokes(app_client: TestClient) -> None:
     stale_refresh = client.cookies.get("mnx_refresh")
     assert client.post("/api/auth/logout").status_code == 204
     replay = TestClient(app, cookies={"mnx_refresh": stale_refresh, CSRF_COOKIE: "t"}, headers={"x-csrf-token": "t"})
-    assert replay.post("/api/auth/refresh").status_code == 401
+    refused = replay.post("/api/auth/refresh")
+    assert refused.status_code == 401
+    # The dead session's cookies are cleared, so the browser stops retrying it on every load.
+    cleared = refused.headers.get_list("set-cookie")
+    assert any(c.startswith(f"{CSRF_COOKIE}=") and "Max-Age=0" in c for c in cleared)
+    assert any(c.startswith("mnx_refresh=") and "Max-Age=0" in c for c in cleared)
 
 
 def test_change_password_requires_the_current_one(app_client: TestClient) -> None:

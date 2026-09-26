@@ -68,13 +68,6 @@ analyzers:
       thresholds: {report: 0.50, moderate: 0.60, high: 0.70}
       explain_top_k: 3
 
-  # --- Vision-language only (experimental) ------------------------------------------------
-  # CT studies and MRI outside the head have no specialist model yet: the image goes only to
-  # the vision-language assessment, with a visible "experimental" warning.
-  - id: vision_language_only
-    class: app.analyzers.vision_only:VisionLanguageOnly
-    applies_to: [{modality: ct}, {modality: mri, region: chest}, {modality: mri, region: abdomen}, {modality: mri, region: spine}]
-
   # --- Extremity X-ray -------------------------------------------------------------------
   # Refuses chest radiographs submitted as extremity studies (reuses the chest anatomy model).
   - id: extremity_region_gate
