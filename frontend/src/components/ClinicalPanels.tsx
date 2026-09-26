@@ -73,7 +73,11 @@ export function RulesView({ rules, compact = false }: { rules: ClinicalRules; co
             >
               <TriangleAlert className="size-3.5 shrink-0" />
               <span className="min-w-0 flex-1">{flagLabel(flag.code)}</span>
-              {flag.value && <span className="shrink-0 font-mono text-[11px] opacity-80">{flag.value}</span>}
+              {flag.value && (
+                <span className="shrink-0 font-mono text-[11px] opacity-80">
+                  {flag.code === "altered_consciousness" ? t(`intake.consciousness.${flag.value}`) : flag.value}
+                </span>
+              )}
             </li>
           ))}
         </ul>

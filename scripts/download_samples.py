@@ -174,7 +174,7 @@ class DemoItem:
 
     sample: str
     name: str  # file name inside the category folder
-    study: str  # what to choose on the Analyze page
+    study: str  # what to choose in the imaging step of the New case page
     symptoms: str = ""
     expected: str = ""
 
@@ -249,19 +249,89 @@ DEMO = {
 }
 
 
+# The one-click sample cases of the New case page; the same file drives the demo folder.
+SAMPLE_CASES = Path(__file__).resolve().parents[1] / "frontend" / "public" / "samples" / "cases.json"
+SEX_UZ = {"male": "erkak", "female": "ayol"}
+# Uzbek chip labels of the New case page, so a presenter can tick the same boxes by hand.
+SYMPTOMS_UZ = {
+    "fever": "Isitma", "chills": "Titroq", "fatigue": "Holsizlik", "weight_loss": "Ozish",
+    "night_sweats": "Kechasi terlash", "sweating": "Sovuq ter", "cough": "Yo‘tal", "sputum": "Balg‘am",
+    "hemoptysis": "Qon tupurish", "dyspnea": "Nafas qisishi", "severe_dyspnea": "Kuchli nafas yetishmasligi",
+    "wheezing": "Xirillash", "sore_throat": "Tomoq og‘rig‘i", "chest_pain": "Ko‘krak og‘rig‘i",
+    "palpitations": "Yurak urishi sezilishi", "syncope": "Hushdan ketish", "edema_legs": "Oyoq shishi",
+    "headache": "Bosh og‘rig‘i", "thunderclap_headache": "To‘satdan kuchli bosh og‘rig‘i",
+    "dizziness": "Bosh aylanishi", "confusion": "Hush chalkashligi", "seizure": "Tutqanoq",
+    "focal_deficit": "Bir tomonlama holsizlik / uvishish", "vision_change": "Ko‘rish o‘zgarishi",
+    "neck_stiffness": "Ensa mushaklari rigidligi", "nausea": "Ko‘ngil aynishi", "vomiting": "Qusish",
+    "abdominal_pain": "Qorin og‘rig‘i", "diarrhea": "Ich ketishi", "pain": "Mahalliy og‘riq",
+    "swelling": "Shish", "trauma": "Yaqinda jarohat", "limited_motion": "Harakat cheklanishi",
+}
+HISTORY_UZ = {
+    "hypertension": "Gipertoniya", "diabetes": "Qandli diabet", "copd_asthma": "SOOK / astma",
+    "heart_disease": "Yurak kasalligi", "ckd": "Surunkali buyrak kasalligi", "cancer": "Onkologiya",
+    "immunosuppression": "Immunosupressiya / OIV", "tb_history": "Ilgari sil kasalligi",
+    "pregnancy": "Homiladorlik", "anticoagulants": "Antikoagulyant qabul qiladi",
+}
+
+
+def sample_case_lines() -> list[str]:
+    """Write samples/demo/0_namuna_holatlar/: one sheet per sample case, plus its image."""
+    cases = json.loads(SAMPLE_CASES.read_text(encoding="utf-8"))
+    folder = "0_namuna_holatlar"
+    target_dir = DEMO_DIR / folder
+    target_dir.mkdir(parents=True, exist_ok=True)
+    lines = ["", "", folder, "-" * len(folder),
+             "Eng oson yo'l: 'Yangi holat' sahifasida 'Namuna holatni yuklash' tugmasini bosing.",
+             "Quyidagi ma'lumotlarni qo'lda kiritib ko'rsatish ham mumkin."]
+    for number, case in enumerate(cases, start=1):
+        text = case["locale"]["uz"]
+        clinical, vitals = case["clinical"], case["clinical"].get("vitals", {})
+        sheet = [
+            f"{text['title']} ({case['age']} yosh, {SEX_UZ[case['sex']]})",
+            "",
+            f"Asosiy shikoyat:   {text['chief_complaint']}",
+            f"Davomiyligi:       {text['duration']}",
+            f"Kasallik tarixi:   {text['hpi']}",
+            f"Simptomlar:        {', '.join(SYMPTOMS_UZ.get(c, c) for c in clinical.get('symptoms', []))}",
+            "Vital:             " + ", ".join(f"{k}={v}" for k, v in vitals.items() if v not in (None, False, "alert")),
+            f"Anamnez:           {', '.join(HISTORY_UZ.get(c, c) for c in clinical.get('history', [])) or '-'}",
+            f"Dorilar:           {text['medications'] or '-'}",
+            f"Ko'rik:            {text['exam'] or '-'}",
+            f"Tahlillar:         {text['labs'] or '-'}",
+        ]
+        image = case.get("image")
+        name = f"{number:02}_{case['id']}"
+        if image:
+            suffix = Path(image["file"]).suffix
+            (target_dir / f"{name}{suffix}").write_bytes((SAMPLES_DIR / image["file"]).read_bytes())
+            sheet.append(f"Tasvir (7-bo'lim): {name}{suffix}  ({image['modality']} / {image['region']} / {image['view']})")
+        else:
+            sheet.append("Tasvir:            yo'q (faqat simptomlar asosida differensial)")
+        sheet += ["", f"Kutiladi: {text['expected']}"]
+        (target_dir / f"{name}.txt").write_text("\n".join(sheet) + "\n", encoding="utf-8")
+        lines += ["", f"{name}.txt" + (f" + {name}{Path(image['file']).suffix}" if image else ""), f"  {text['title']}",
+                  f"  Kutiladi: {text['expected']}"]
+    return lines
+
+
 def make_demo_folder() -> None:
     """Copy the samples into samples/demo/<category>/ with a README of what to show."""
     lines = [
-        "MedNexus demo rasmlari",
-        "======================",
+        "MedNexus demo ma'lumotlari",
+        "==========================",
         "",
-        "Har bir rasm uchun: 'Yangi tahlil' sahifasida qaysi turni tanlash, 'Simptomlar'",
-        "maydoniga nima yozish va qanday natija kutish. Kirish: user@mednexus.uz yoki",
-        "doctor@mednexus.uz, parol MedNexus-Demo-2026.",
+        "Kirish: doctor@mednexus.uz, parol MedNexus-Demo-2026. MedNexus faqat shifokorlar uchun:",
+        "'Yangi holat' sahifasida avval klinik ma'lumotlar (shikoyat, simptomlar, vital",
+        "ko'rsatkichlar, anamnez, ko'rik, tahlillar) kiritiladi; tasvir ixtiyoriy va oxirgi",
+        "(7-) bo'limda qo'shiladi yoki keyinroq holat sahifasidan biriktiriladi.",
         "",
         "Barcha rasmlar ochiq litsenziyali (samples/SOURCES.md). DICOM fayllardagi bemor",
-        "ma'lumotlari to'qima (SAMPLE^DEMO) va yuklashda o'chiriladi.",
+        "ma'lumotlari to'qima (SAMPLE^DEMO) va yuklashda o'chiriladi. Namuna holatlar",
+        "o'quv maqsadidagi to'qima holatlar.",
     ]
+    lines += sample_case_lines()
+    lines += ["", "", "Tasvirlar bo'yicha qo'shimcha misollar",
+              "(tasvirni 7-bo'limda yuklang; 'Simptomlar' matnini 'Kasallik tarixi' maydoniga yozing)"]
     for folder, items in DEMO.items():
         target_dir = DEMO_DIR / folder
         target_dir.mkdir(parents=True, exist_ok=True)

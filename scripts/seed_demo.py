@@ -1,4 +1,5 @@
-"""Seed a demo workspace: three accounts and 16 analyzed studies spread over the last week.
+"""Seed a demo workspace: the doctor account, analyzed studies over the last week and the six
+sample cases (with their AI differential) waiting in the worklist.
 
 Every study goes through the real pipeline (safety gates, image models and, when GROQ_API_KEY
 is set in backend/.env, the AI report in Uzbek), so all findings and scores are actual model
@@ -17,10 +18,12 @@ deletes a local SQLite database and its uploads; stop the API server before usin
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import shutil
 import sys
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -166,39 +169,35 @@ STUDIES = [
         impression="Kardiomegaliyaga shubha. Radiolog tasdig‘i kerak.",
         recommendations="Oldingi tasvirlar bilan solishtirish.",
     )),
-    # Clinical-first cases: the structured intake drives the differential; imaging is optional.
-    Study("wrist_injury", "wrist_buckle_fracture.jpg", 2 * DAY, region="extremity", age=11, sex="male",
-          symptoms="Velosipeddan yiqilib tushdi, bilagi shishgan va qimirlatganda og‘riyapti.",
-          clinical={"chief_complaint": "Bilak og‘rig‘i va shishi, jarohatdan keyin", "onset": "sudden", "duration": "3 soat",
-                    "severity": "moderate", "symptoms": ["pain", "swelling"],
-                    "vitals": {"temperature": 36.7, "heart_rate": 96, "resp_rate": 18, "spo2": 99}}),
-    Study("headache_mri", "brain_mri_glioma.jpg", 26 * HOUR, modality="mri", region="head", view="Axial",
-          age=52, sex="female", optional=True,
-          symptoms="2 oydan beri bosh og‘rig‘i, ertalab kuchayadi, ba’zan ko‘ngil aynishi va ko‘rish xiralashishi.",
-          clinical={"chief_complaint": "Kuchayib borayotgan bosh og‘rig‘i", "onset": "gradual", "duration": "2 oy",
-                    "severity": "moderate", "symptoms": ["headache", "nausea", "vision_change"],
-                    "vitals": {"temperature": 36.6, "heart_rate": 72, "resp_rate": 14, "systolic": 138, "diastolic": 86, "spo2": 98},
-                    "exam": "Fundoskopiyada disk shishi shubhasi."}),
-    Study("cough_fever", "chest_pa_pneumonia.jpg", 50 * MINUTE, age=46, sex="male",
-          symptoms="3 kundan beri yo‘tal, harorat 38,5, o‘ng tomonda nafas olganda ko‘krak og‘rig‘i.",
-          clinical={"chief_complaint": "Yo‘tal va isitma", "onset": "sudden", "duration": "3 kun", "severity": "moderate",
-                    "symptoms": ["cough", "fever", "chest_pain", "dyspnea"], "smoking": "current",
-                    "vitals": {"temperature": 38.6, "heart_rate": 108, "resp_rate": 24, "systolic": 118, "diastolic": 74, "spo2": 93},
-                    "exam": "O‘ng pastki bo‘lakda krepitatsiya, bronxial nafas.", "labs": "Leykotsitlar 15.2, CRP 96 mg/L"}),
-    # No image: the differential comes from the intake alone.
-    Study("chest_pain", "", 35 * MINUTE, modality="clinical", age=61, sex="male",
-          symptoms="1 soat oldin boshlangan ko‘krak ortidagi siquvchi og‘riq, chap qo‘lga tarqaladi, sovuq ter.",
-          clinical={"chief_complaint": "Ko‘krak ortidagi siquvchi og‘riq", "onset": "sudden", "duration": "1 soat",
-                    "severity": "severe", "symptoms": ["chest_pain", "sweating", "dyspnea"],
-                    "history": ["hypertension", "diabetes"], "smoking": "current",
-                    "vitals": {"temperature": 36.8, "heart_rate": 112, "resp_rate": 22, "systolic": 96, "diastolic": 60, "spo2": 94},
-                    "medications": "Metformin, amlodipin"}),
-    Study("tb_suspect", "", 20 * MINUTE, modality="clinical", age=34, sex="female",
-          symptoms="5 haftadan beri yo‘tal, kechasi terlash, 6 kg ozgan, ba’zan balg‘amda qon.",
-          clinical={"chief_complaint": "Uzoq davom etayotgan yo‘tal", "onset": "gradual", "duration": "5 hafta",
-                    "severity": "moderate", "symptoms": ["cough", "night_sweats", "weight_loss", "hemoptysis", "fever"],
-                    "vitals": {"temperature": 37.8, "heart_rate": 94, "resp_rate": 18, "systolic": 112, "diastolic": 70, "spo2": 97}}),
 ]
+
+# The six teaching cases of the New case page ("Load sample case"), analyzed ahead of time so
+# they are waiting in the worklist with their differential. Same file as the web app uses.
+SAMPLE_CASES = ROOT / "frontend" / "public" / "samples" / "cases.json"
+EMPTY_VITALS = {"temperature": None, "heart_rate": None, "resp_rate": None, "systolic": None, "diastolic": None,
+                "spo2": None, "on_oxygen": False, "consciousness": "alert"}
+
+
+def sample_case_studies() -> list[Study]:
+    studies = []
+    for number, case in enumerate(json.loads(SAMPLE_CASES.read_text(encoding="utf-8"))):
+        text, image = case["locale"]["uz"], case.get("image")
+        clinical = {
+            "chief_complaint": text["chief_complaint"], "onset": "", "duration": text["duration"], "severity": "",
+            "symptoms": [], "history": [], "medications": text["medications"], "allergies": "", "smoking": "",
+            "exam": text["exam"], "labs": text["labs"], **case["clinical"],
+        }
+        clinical["vitals"] = {**EMPTY_VITALS, **case["clinical"].get("vitals", {})}
+        studies.append(Study(
+            f"sample_{case['id']}", image["file"] if image else "", (70 - 10 * number) * MINUTE,
+            region=image["region"] if image else "none", view=image["view"] if image else "none",
+            modality=image["modality"] if image else "clinical",
+            symptoms=text["hpi"], clinical=clinical, age=case["age"], sex=case["sex"],
+        ))
+    return studies
+
+
+STUDIES += sample_case_studies()
 
 ATTEMPTS = [
     Attempt("heart_failure", ("Lung opacity", "Edema", "Cardiomegaly"), 2 * DAY + HOUR, ((0.3, 0.62), (0.7, 0.6))),
@@ -284,14 +283,21 @@ def backdate(session: Session, case: Case, created: datetime, reviewed: datetime
     session.commit()
 
 
-def seed_studies(service: AnalysisService, user_ids: dict[str, int]) -> tuple[dict[str, int], dict[str, int]]:
-    """Upload, analyze and (where planned) review every study. Returns case and patient ids by key."""
+def seed_studies(
+    service: AnalysisService, user_ids: dict[str, int], studies: list[Study] | None = None, pause_s: float = 0
+) -> tuple[dict[str, int], dict[str, int]]:
+    """Upload, analyze and (where planned) review every study. Returns case and patient ids by key.
+
+    ``pause_s`` waits between studies, to stay under the LLM provider's per-minute token limit."""
+    studies = STUDIES if studies is None else studies
     engine = get_engine()
     case_ids: dict[str, int] = {}
     patient_ids: dict[str, int] = {}
-    for number, study in enumerate(STUDIES, start=1):
+    for number, study in enumerate(studies, start=1):
+        if number > 1 and pause_s:
+            time.sleep(pause_s)
         if study.sample and not (SAMPLES_DIR / study.sample).exists():
-            print(f"  [{number:2}/{len(STUDIES)}] {study.sample:34} skipped: sample not downloaded")
+            print(f"  [{number:2}/{len(studies)}] {study.sample:34} skipped: sample not downloaded")
             continue
         created = NOW - study.ago
         with Session(engine) as session:
@@ -327,7 +333,7 @@ def seed_studies(service: AnalysisService, user_ids: dict[str, int]) -> tuple[di
                 outcome += " - NOT reviewed: the planned review needs an analyzed image"
             elif reviewed:
                 outcome += f", review: {study.sign_off.action}"
-            print(f"  [{number:2}/{len(STUDIES)}] {study.sample or '(intake only)':34} {study.region:9} -> {outcome}")
+            print(f"  [{number:2}/{len(studies)}] {study.sample or '(intake only)':34} {study.region:9} -> {outcome}")
     return case_ids, patient_ids
 
 
@@ -378,11 +384,29 @@ def summarize(settings: Settings, service: AnalysisService, follow_up_patient: i
         print(f"  {account.email:26} {account.full_name:22} {account.role}")
 
 
+def add_sample_cases(settings: Settings) -> None:
+    """Analyze the six sample cases for the demo doctor in an existing database (the server may keep running)."""
+    with Session(get_engine()) as session:
+        doctor = session.exec(select(User).where(User.email == ACCOUNTS["doctor"].email)).first()
+    if doctor is None:
+        sys.exit("The demo doctor account does not exist: run this script without --samples first.")
+    studies = sample_case_studies()
+    print("Loading models...")
+    service = build_service(settings)
+    print(f"Adding {len(studies)} sample cases (AI: {'on' if service.writer.llm.configured else 'off'})")
+    seed_studies(service, {"doctor": doctor.id}, studies, pause_s=20 if service.writer.llm.configured else 0)
+    print(f"Done. Sign in as {doctor.email} (password {PASSWORD}); the cases are at the top of the worklist.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Seed MedNexus with demo accounts and analyzed studies.")
     parser.add_argument(
         "--reset", action="store_true",
         help="first delete the local SQLite database and uploads (stop the API server before)",
+    )
+    parser.add_argument(
+        "--samples", action="store_true",
+        help="only add the six sample cases (frontend/public/samples/cases.json) to an existing database",
     )
     args = parser.parse_args()
     logging.getLogger("httpx").setLevel(logging.WARNING)  # one line per LLM request otherwise
@@ -390,6 +414,9 @@ def main() -> None:
     if args.reset:
         reset(settings)
     run_migrations()
+    if args.samples:
+        add_sample_cases(settings)
+        return
 
     with Session(get_engine()) as session:
         emails = [a.email for a in ACCOUNTS.values()]

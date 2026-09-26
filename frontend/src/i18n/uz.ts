@@ -114,6 +114,14 @@ const uz: Messages = {
     noVitals: "NEWS2, qSOFA va CRB-65 uchun vital ko‘rsatkichlarni kiriting.",
     willRun: "Nima ishga tushadi",
     batch: "Ommaviy tasvir yuklash",
+    samples: {
+      button: "Namuna holatni yuklash",
+      title: "Namoyish uchun namuna holatlar",
+      hint: "O‘quv maqsadidagi to‘qima holatlar. Bir bosishda ma’lumotlar va tasvirli holatlarda rasm ham to‘ldiriladi.",
+      withImage: "tasvir bilan",
+      loaded: "Namuna yuklandi: {title}",
+      expected: "Kutiladigan natija",
+    },
   },
   rules: {
     title: "Klinik qoidalar mexanizmi",

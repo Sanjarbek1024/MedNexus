@@ -112,6 +112,14 @@ const en = {
     noVitals: "Enter vital signs to compute NEWS2, qSOFA and CRB-65.",
     willRun: "What will run",
     batch: "Batch imaging",
+    samples: {
+      button: "Load sample case",
+      title: "Sample cases for a demo",
+      hint: "Fictional teaching cases. One click fills the intake and, for imaging cases, the image.",
+      withImage: "with image",
+      loaded: "Sample loaded: {title}",
+      expected: "Expected",
+    },
   },
   rules: {
     title: "Clinical rules engine",

@@ -100,3 +100,26 @@ test("doctor: symptoms-only case → rules engine → add imaging later", async 
   await expect(page.getByText("Urgent").first()).toBeVisible();  // red flags raise triage without any model
   await expect(page.getByRole("heading", { name: "Add imaging to refine the differential" })).toBeVisible();
 });
+
+test("doctor: one-click sample case fills the intake and the image", async ({ page }) => {
+  await page.goto("/signup");
+  await page.getByRole("button", { name: "en", exact: true }).click();
+  await page.getByLabel("Full name").fill("Dr. Sample Test");
+  await page.getByLabel("Email").fill(`e2e-sample-${Date.now()}@example.org`);
+  await page.getByLabel("Password").fill("Smoke-test-2026");
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(page).toHaveURL(/\/dashboard/);
+
+  await page.goto("/analyze");
+  await page.getByRole("button", { name: "Load sample case" }).click();
+  await page.getByRole("menuitem", { name: /Wrist injury \+ X-ray/ }).click();
+  await expect(page.getByText("Sample loaded: Wrist injury + X-ray")).toBeVisible();
+  await expect(page.getByLabel("Chief complaint")).toHaveValue("Wrist pain after a fall");
+  await expect(page.getByRole("button", { name: "Recent injury", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Analyze with image" })).toBeVisible();  // the X-ray is attached
+
+  await page.getByRole("button", { name: "Load sample case" }).click();
+  await page.getByRole("menuitem", { name: /Fever and confusion/ }).click();
+  await expect(page.getByText("NEWS2").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Build differential" })).toBeVisible();  // no image for this case
+});

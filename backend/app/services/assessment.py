@@ -336,8 +336,8 @@ class PatientContext:
     rules: dict | None = None  # ClinicalRules: scores and red flags from the rules engine
 
 
-def _clinical_payload(context: PatientContext) -> dict:
-    intake, rules = readable(context.clinical, context.rules)
+def _clinical_payload(context: PatientContext, language: str = "en") -> dict:
+    intake, rules = readable(context.clinical, context.rules, language)
     return {
         "history_of_present_illness": context.symptoms or "not provided",
         "age": context.age,
@@ -347,13 +347,13 @@ def _clinical_payload(context: PatientContext) -> dict:
     }
 
 
-def _payload(result: AnalysisResult, context: PatientContext) -> dict:
+def _payload(result: AnalysisResult, context: PatientContext, language: str = "en") -> dict:
     payload = build_prompt_payload(result)
     payload["symptoms"] = context.symptoms or "not provided"
     payload["age"] = context.age
     payload["sex"] = context.sex
     if context.clinical or context.rules:
-        payload["structured_intake"], payload["clinical_rules"] = readable(context.clinical, context.rules)
+        payload["structured_intake"], payload["clinical_rules"] = readable(context.clinical, context.rules, language)
     return payload
 
 
@@ -471,7 +471,7 @@ def assess(
     """Image + model outputs + symptoms → differential. Raises when no stage can produce one."""
     if not vision.configured:
         raise AssessmentUnavailableError("GROQ_API_KEY is not configured")
-    payload = _payload(result, context)
+    payload = _payload(result, context, language)
     if reasoner is not None and reasoner.configured:
         try:
             reading = observe(vision, result, image_url, payload)
@@ -658,7 +658,7 @@ def assess_clinical(reasoner: LLM, context: PatientContext, language: str) -> As
     trace = _Trace()
     trace.add("rules", "done", RULES_LABEL)
     trace.add("imaging", "skipped")
-    data = _clinical_payload(context)
+    data = _clinical_payload(context, language)
     system = CLINICAL_REASON_PROMPT.format(
         language=LANGUAGES[language].prompt_name, schema=_clinical_schema(language), **SOURCES[language]
     ) + "\n\n" + ANSWER_IN[language]
@@ -695,6 +695,6 @@ def assess_with_pipeline(
     trace.add("reasoner", "done" if used_reasoner else "skipped", reasoner.model if reasoner else "", started=started)
     assessment.mode = "multimodal"
     if reasoner is not None and reasoner.configured:
-        return _finish(assessment, trace, reasoner, _payload(result, context), context, language)
+        return _finish(assessment, trace, reasoner, _payload(result, context, language), context, language)
     assessment.pipeline = trace.steps
     return assessment

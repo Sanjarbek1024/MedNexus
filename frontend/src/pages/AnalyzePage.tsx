@@ -6,6 +6,7 @@ import { ScanningImage, StepList } from "../components/AnalysisProgress";
 import { BatchForm } from "../components/BatchUpload";
 import { ComplaintFields, ExamFields, HistoryFields, IntakeSection, SymptomFields, VitalFields, type Update } from "../components/ClinicalIntake";
 import { RulesView } from "../components/ClinicalPanels";
+import { SampleBanner, SampleCaseMenu } from "../components/SampleCases";
 import { StudyFields, useStudyForm } from "../components/StudyForm";
 import { PageHeader, Segmented } from "../components/ui";
 import { UploadZone } from "../components/UploadZone";
@@ -13,6 +14,7 @@ import { useI18n } from "../i18n";
 import { api, ApiError, type ClinicalData, type ClinicalRules, type Sex, type Stage } from "../lib/api";
 import { emptyClinical, hasIntake, hasVitals } from "../lib/clinical";
 import { navigate } from "../lib/router";
+import { sampleImage, sampleIntake, type SampleCase } from "../lib/samples";
 import { rememberCase } from "./CasePage";
 
 function PatientFields({ form }: { form: ReturnType<typeof useStudyForm> }) {
@@ -75,7 +77,7 @@ function useLiveRules(clinical: ClinicalData, age: string) {
 const PLAN = ["rules", "imaging", "vision", "reasoner", "critic", "guardrails"] as const;
 
 export function AnalyzePage() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const form = useStudyForm();
   const [mode, setMode] = useState<"single" | "batch">("single");
   const [clinical, setClinical] = useState<ClinicalData>(emptyClinical);
@@ -85,6 +87,8 @@ export function AnalyzePage() {
   const [preview, setPreview] = useState<string | null>(null);
   const [stages, setStages] = useState<Stage[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sample, setSample] = useState<SampleCase | null>(null);
+  const [loadingSample, setLoadingSample] = useState(false);
   const rules = useLiveRules(clinical, form.state.age);
   const update: Update = (patch) => setClinical((current) => ({ ...current, ...(typeof patch === "function" ? patch(current) : patch) }));
 
@@ -97,6 +101,32 @@ export function AnalyzePage() {
     setFile(next ?? null);
     const raster = next && (/\.(png|jpe?g)$/i.test(next.name) || /^image\/(png|jpeg)$/.test(next.type));
     setPreview(raster ? URL.createObjectURL(next) : null);
+  };
+
+  /** Fill the whole intake (and the image, if the case has one) from a fictional teaching case. */
+  const loadSample = async (next: SampleCase) => {
+    setError(null);
+    setLoadingSample(true);
+    const text = next.locale[language] ?? next.locale.en;
+    setClinical(sampleIntake(next, language));
+    setHpi(text.hpi);
+    form.update({ age: String(next.age), sex: next.sex, language, patientId: null });
+    try {
+      const image = await sampleImage(next);
+      if (image && next.image) {
+        form.update({ modality: next.image.modality, region: next.image.region, view: next.image.view });
+        chooseFile([image]);
+        setImaging(true);
+      } else {
+        chooseFile([]);
+        setImaging(false);
+      }
+      setSample(next);
+    } catch {
+      setError(t("common.error"));
+    } finally {
+      setLoadingSample(false);
+    }
   };
 
   const ready = (hasIntake(clinical) || hpi.trim().length > 0 || Boolean(file)) && (!file || form.supported);
@@ -154,14 +184,19 @@ export function AnalyzePage() {
         title={t("intake.title")}
         subtitle={t("intake.subtitle")}
         actions={
-          <Segmented
-            value={mode}
-            onChange={setMode}
-            label="mode"
-            options={[{ id: "single", label: t("intake.title") }, { id: "batch", label: t("intake.batch") }]}
-          />
+          <>
+            {mode === "single" && <SampleCaseMenu onLoad={loadSample} busy={loadingSample} />}
+            <Segmented
+              value={mode}
+              onChange={setMode}
+              label="mode"
+              options={[{ id: "single", label: t("intake.title") }, { id: "batch", label: t("intake.batch") }]}
+            />
+          </>
         }
       />
+
+      {sample && mode === "single" && <SampleBanner sample={sample} onClose={() => setSample(null)} />}
 
       {form.waiting && (
         <div role="alert" className="flex items-center gap-3 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 ring-1 ring-rose-200">

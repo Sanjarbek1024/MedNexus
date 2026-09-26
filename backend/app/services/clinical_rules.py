@@ -194,17 +194,76 @@ FLAG_NAMES = {
 }
 
 
-def readable(intake: dict | None, rules: dict | None) -> tuple[dict, dict]:
-    """The intake and the rules output with checklist codes replaced by plain names."""
+def readable(intake: dict | None, rules: dict | None, language: str = "en") -> tuple[dict, dict]:
+    """The intake and the rules output with checklist codes replaced by names in the answer language."""
+    symptoms, history, flags = NAMES.get(language, NAMES["en"])
     intake = dict(intake or {})
     if intake:
-        intake["symptoms"] = [SYMPTOM_NAMES.get(s, s) for s in intake.get("symptoms", [])]
-        intake["history"] = [HISTORY_NAMES.get(h, h) for h in intake.get("history", [])]
+        intake["symptoms"] = [symptoms.get(s, s) for s in intake.get("symptoms", [])]
+        intake["history"] = [history.get(h, h) for h in intake.get("history", [])]
     rules = dict(rules or {})
     if rules:
         rules["flags"] = [
-            {**flag, "code": f"red-flag symptom: {SYMPTOM_NAMES.get(flag['code'][8:], flag['code'][8:])}"
-             if flag["code"].startswith("symptom_") else FLAG_NAMES.get(flag["code"], flag["code"])}
+            {**flag, "code": f"red flag: {symptoms.get(flag['code'][8:], flag['code'][8:])}"
+             if flag["code"].startswith("symptom_") else flags.get(flag["code"], flag["code"])}
             for flag in rules.get("flags", [])
         ]
     return intake, rules
+
+# The same names in Uzbek and Russian (the UI chip labels), so the models answer in the case language
+# instead of copying English words.
+SYMPTOM_NAMES_UZ = {
+    "fever": "isitma", "chills": "titroq", "fatigue": "holsizlik", "weight_loss": "ozish",
+    "night_sweats": "kechasi terlash", "sweating": "sovuq ter", "cough": "yo‘tal", "sputum": "balg‘am",
+    "hemoptysis": "qon tupurish", "dyspnea": "nafas qisishi", "severe_dyspnea": "kuchli nafas yetishmasligi",
+    "wheezing": "xirillash", "sore_throat": "tomoq og‘rig‘i", "chest_pain": "ko‘krak og‘rig‘i",
+    "palpitations": "yurak urishi sezilishi", "syncope": "hushdan ketish", "edema_legs": "oyoq shishi",
+    "headache": "bosh og‘rig‘i", "thunderclap_headache": "to‘satdan kuchli bosh og‘rig‘i",
+    "dizziness": "bosh aylanishi", "confusion": "hush chalkashligi", "seizure": "tutqanoq",
+    "focal_deficit": "bir tomonlama holsizlik / uvishish", "vision_change": "ko‘rish o‘zgarishi",
+    "neck_stiffness": "ensa mushaklari rigidligi", "nausea": "ko‘ngil aynishi", "vomiting": "qusish",
+    "abdominal_pain": "qorin og‘rig‘i", "diarrhea": "ich ketishi", "pain": "mahalliy og‘riq",
+    "swelling": "shish", "trauma": "yaqinda jarohat", "limited_motion": "harakat cheklanishi",
+}
+SYMPTOM_NAMES_RU = {
+    "fever": "лихорадка", "chills": "озноб", "fatigue": "слабость", "weight_loss": "потеря веса",
+    "night_sweats": "ночная потливость", "sweating": "холодный пот", "cough": "кашель", "sputum": "мокрота",
+    "hemoptysis": "кровохарканье", "dyspnea": "одышка", "severe_dyspnea": "выраженная одышка",
+    "wheezing": "хрипы", "sore_throat": "боль в горле", "chest_pain": "боль в груди",
+    "palpitations": "сердцебиение", "syncope": "обморок", "edema_legs": "отёки ног",
+    "headache": "головная боль", "thunderclap_headache": "внезапная сильная головная боль",
+    "dizziness": "головокружение", "confusion": "спутанность сознания", "seizure": "судороги",
+    "focal_deficit": "слабость / онемение с одной стороны", "vision_change": "нарушение зрения",
+    "neck_stiffness": "ригидность затылочных мышц", "nausea": "тошнота", "vomiting": "рвота",
+    "abdominal_pain": "боль в животе", "diarrhea": "диарея", "pain": "локальная боль", "swelling": "отёк",
+    "trauma": "недавняя травма", "limited_motion": "ограничение движений",
+}
+HISTORY_NAMES_UZ = {
+    "hypertension": "gipertoniya", "diabetes": "qandli diabet", "copd_asthma": "sook / astma",
+    "heart_disease": "yurak kasalligi", "ckd": "surunkali buyrak kasalligi", "cancer": "onkologiya",
+    "immunosuppression": "immunosupressiya / oiv", "tb_history": "ilgari sil kasalligi",
+    "pregnancy": "homiladorlik", "anticoagulants": "antikoagulyant qabul qiladi",
+}
+HISTORY_NAMES_RU = {
+    "hypertension": "гипертония", "diabetes": "сахарный диабет", "copd_asthma": "хобл / астма",
+    "heart_disease": "болезнь сердца", "ckd": "хроническая болезнь почек", "cancer": "онкология",
+    "immunosuppression": "иммуносупрессия / вич", "tb_history": "туберкулёз в анамнезе",
+    "pregnancy": "беременность", "anticoagulants": "принимает антикоагулянты",
+}
+FLAG_NAMES_UZ = {
+    "spo2_low": "kislorod saturatsiyasi past", "tachypnea": "tez nafas", "tachycardia": "taxikardiya",
+    "bradycardia": "bradikardiya", "hypotension": "gipotenziya", "hypertension_severe": "og‘ir gipertenziya",
+    "fever": "isitma", "hypothermia": "gipotermiya", "altered_consciousness": "hush o‘zgargan",
+    "infant_fever": "chaqaloqda isitma",
+}
+FLAG_NAMES_RU = {
+    "spo2_low": "низкая сатурация", "tachypnea": "тахипноэ", "tachycardia": "тахикардия",
+    "bradycardia": "брадикардия", "hypotension": "гипотензия", "hypertension_severe": "тяжёлая гипертензия",
+    "fever": "лихорадка", "hypothermia": "гипотермия", "altered_consciousness": "нарушение сознания",
+    "infant_fever": "лихорадка у младенца",
+}
+NAMES = {
+    "en": (SYMPTOM_NAMES, HISTORY_NAMES, FLAG_NAMES),
+    "uz": (SYMPTOM_NAMES_UZ, HISTORY_NAMES_UZ, FLAG_NAMES_UZ),
+    "ru": (SYMPTOM_NAMES_RU, HISTORY_NAMES_RU, FLAG_NAMES_RU),
+}
