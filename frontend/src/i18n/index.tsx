@@ -1,8 +1,8 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import type { Check, Language } from "../lib/api";
 import en from "./en";
-import { findingName, taxonomyLabel } from "./labels";
+import { analyzerLabel, findingName, specialtyLabel, taxonomyLabel } from "./labels";
 import ru from "./ru";
 import uz from "./uz";
 
@@ -20,6 +20,10 @@ function uzbekDate(value: Date, withTime: boolean): string {
 }
 
 type Params = Record<string, string | number>;
+type StudyType = { modality: string; region: string; view: string };
+
+// Plain-language names for the study types people upload themselves (the wording of the study picker).
+const PRESET_OF: Record<string, string> = { "xray/chest": "chest", "xray/extremity": "extremity", "mri/head": "brain" };
 
 function lookup(source: unknown, key: string): unknown {
   return key.split(".").reduce<unknown>((node, part) => (node as Record<string, unknown> | undefined)?.[part], source);
@@ -36,7 +40,11 @@ interface I18n {
   list: <T>(key: string) => readonly T[];
   finding: (name: string) => string;
   taxonomy: (id: string) => string;
-  study: (s: { modality: string; region: string; view: string }) => string;
+  specialty: (id: string) => string;
+  analyzer: (label: string) => string;
+  study: (s: StudyType) => string;
+  /** Plain-language study name for people ("Brain MRI"); the technical one for other study types. */
+  scanTitle: (s: StudyType) => string;
   check: (check: Check) => string;
   date: (iso: string, withTime?: boolean) => string;
   weekday: (iso: string) => string;
@@ -59,9 +67,13 @@ function initialLanguage(): Language {
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(initialLanguage);
 
+  useEffect(() => {
+    document.documentElement.lang = language;
+    document.title = `MedNexus · ${lookup(DICTIONARIES[language], "common.tagline")}`;
+  }, [language]);
+
   const setLanguage = useCallback((next: Language) => {
     setLanguageState(next);
-    document.documentElement.lang = next;
     try {
       localStorage.setItem(STORAGE_KEY, next);
     } catch {
@@ -75,6 +87,9 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       return typeof found === "string" ? interpolate(found, params) : key;
     };
     const locale = LOCALES[language];
+    // A case without an image is named by its clinical assessment, not by a study type.
+    const study = (s: StudyType) =>
+      s.modality === "clinical" ? t("intake.clinicalStudy") : [s.modality, s.region, s.view].map((id) => taxonomyLabel(language, id)).join(" · ");
     return {
       language,
       setLanguage,
@@ -82,7 +97,13 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       list: <T,>(key: string) => ((lookup(DICTIONARIES[language], key) ?? lookup(en, key) ?? []) as readonly T[]),
       finding: (name) => findingName(language, name),
       taxonomy: (id) => taxonomyLabel(language, id),
-      study: (s) => [s.modality, s.region, s.view].map((id) => taxonomyLabel(language, id)).join(" · "),
+      specialty: (id) => specialtyLabel(language, id),
+      analyzer: (label) => analyzerLabel(language, label),
+      study,
+      scanTitle: (s) => {
+        const preset = PRESET_OF[`${s.modality}/${s.region}`];
+        return preset ? t(`analyze.presets.${preset}.title`) : study(s);
+      },
       check: (check) => {
         const key = check.code ? `checks.${check.code}` : "";
         const params = Object.fromEntries(

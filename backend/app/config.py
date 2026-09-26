@@ -17,8 +17,13 @@ class Settings(BaseSettings):
     groq_api_key: str | None = None
     groq_model: str = "openai/gpt-oss-120b"
     groq_timeout_s: float = 30.0
+    # Open-weight vision-language model that reads the image together with the symptoms.
+    groq_vision_model: str = "qwen/qwen3.8-27b"
+    groq_vision_timeout_s: float = 60.0
 
     registry_path: Path = BACKEND_DIR / "analyzers.yaml"
+    # Model weights live inside the project (backend/weights), so the folder deploys as one unit.
+    weights_dir: Path = BACKEND_DIR / "weights"
     data_dir: Path = BACKEND_DIR / "data"
     database_url: str | None = None  # default: SQLite file in data_dir
     device: str = "auto"

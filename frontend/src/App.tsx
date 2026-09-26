@@ -3,7 +3,7 @@ import { LoaderCircle } from "lucide-react";
 import { lazy, Suspense, useEffect } from "react";
 
 import { AppShell } from "./components/AppShell";
-import { useAuth } from "./lib/auth";
+import { homeFor, useAuth } from "./lib/auth";
 import { navigate, useLocation } from "./lib/router";
 import { AuthPage } from "./pages/AuthPage";
 import { LandingPage } from "./pages/LandingPage";
@@ -32,10 +32,12 @@ function Splash() {
   );
 }
 
-function appPage(path: string, query: URLSearchParams, admin: boolean) {
+function appPage(path: string, query: URLSearchParams) {
   const caseMatch = /^\/cases\/(\d+)$/.exec(path);
   if (caseMatch) return <CasePage caseId={Number(caseMatch[1])} />;
   switch (path) {
+    case "/my":
+      return <Redirect to="/worklist" />;
     case "/dashboard":
       return <DashboardPage />;
     case "/worklist":
@@ -47,7 +49,7 @@ function appPage(path: string, query: URLSearchParams, admin: boolean) {
     case "/training":
       return <TrainingPage />;
     case "/monitor":
-      return admin ? <MonitorPage /> : <Redirect to="/dashboard" />;
+      return <MonitorPage />;
     case "/settings":
       return <SettingsPage />;
     case "/history":
@@ -64,7 +66,7 @@ function Routes() {
   if (path === "/") return <LandingPage />;
   if (!ready) return <Splash />;
   if (path === "/signin" || path === "/signup") {
-    return user ? <Redirect to={query.get("next") ?? "/dashboard"} /> : <AuthPage mode={path === "/signin" ? "signin" : "signup"} />;
+    return user ? <Redirect to={query.get("next") ?? homeFor(user.role)} /> : <AuthPage mode={path === "/signin" ? "signin" : "signup"} />;
   }
   if (!user) return <Redirect to={`/signin?next=${encodeURIComponent(path + window.location.search)}`} />;
 
@@ -86,7 +88,7 @@ function Routes() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
         >
-          {appPage(path, query, user.role === "admin")}
+          {appPage(path, query)}
         </motion.div>
       </Suspense>
     </AppShell>

@@ -8,6 +8,7 @@ from sqlmodel import Session, col, func, select
 from app.analyzers.base import CheckCategory, CheckStatus
 from app.db.audit import as_utc
 from app.db.models import (
+    CLINICAL,
     Analysis,
     AuditEvent,
     Case,
@@ -15,7 +16,6 @@ from app.db.models import (
     Patient,
     Report,
     Review,
-    Role,
     User,
 )
 from app.schemas import (
@@ -23,6 +23,7 @@ from app.schemas import (
     AuditEventOut,
     CaseSummary,
     CheckOut,
+    ClinicalData,
     ImageOut,
     PatientRef,
     PhysicianReport,
@@ -31,25 +32,24 @@ from app.schemas import (
     ReviewAction,
     Selection,
 )
+from app.schemas import Assessment
 from app.schemas import Report as AIReport
+from app.services.clinical_rules import evaluate
+from app.services.hospitals import recommend, specialty_for
 
 
 class CaseNotFoundError(LookupError):
     pass
 
 
-def can_see_all(user: User) -> bool:
-    return user.role == Role.ADMIN
-
-
 def visible(statement, user: User):  # noqa: ANN001, ANN201
-    """Restrict a Case query to what ``user`` may see: their own cases, or everything for admins."""
-    return statement if can_see_all(user) else statement.where(Case.owner_id == user.id)
+    """Restrict a Case query to what ``user`` may see: their own cases."""
+    return statement.where(Case.owner_id == user.id)
 
 
 def get_case(session: Session, case_id: int, user: User) -> Case:
     case = session.get(Case, case_id)
-    if case is None or not (can_see_all(user) or case.owner_id == user.id):
+    if case is None or case.owner_id != user.id:
         raise CaseNotFoundError(case_id)  # same answer for "missing" and "not yours"
     return case
 
@@ -81,6 +81,14 @@ def summaries(session: Session, cases: list[Case]) -> list[CaseSummary]:
     names = user_names(
         session, {c.owner_id for c in cases} | {r.reviewer_id for r in reviews.values() if r}
     )
+    urgency: dict[int, str] = {}  # latest assessment per case; later rows overwrite earlier ones
+    if cases:
+        for report in session.exec(
+            select(Report)
+            .where(Report.kind == "assessment", col(Report.case_id).in_([c.id for c in cases]))
+            .order_by(Report.id)
+        ).all():
+            urgency[report.case_id] = None if report.error else report.content.get("urgency")
     return [
         CaseSummary(
             id=c.id,
@@ -99,7 +107,10 @@ def summaries(session: Session, cases: list[Case]) -> list[CaseSummary]:
             owner=names.get(c.owner_id, ""),
             reviewer=names.get(reviews[c.id].reviewer_id) if reviews.get(c.id) else None,
             reviewed_at=as_utc(c.reviewed_at) if c.reviewed_at else None,
+            urgency=urgency.get(c.id),
             error=c.error,
+            has_image=c.modality != CLINICAL,
+            chief_complaint=(c.clinical or {}).get("chief_complaint") or None,
         )
         for c in cases
     ]
@@ -189,6 +200,24 @@ def assemble(session: Session, case: Case, with_audit: bool = True) -> AnalysisR
     result.acquired_at = as_utc(case.acquired_at)
     result.created_at = as_utc(case.created_at)
     result.selection.language = case.language
+    result.symptoms = case.symptoms
+    result.patient_age = case.patient_age
+    result.patient_sex = case.patient_sex if case.patient_sex in ("male", "female") else None
+    result.has_image = case.modality != CLINICAL
+    if case.clinical:
+        result.clinical = ClinicalData.model_validate(case.clinical)
+        result.rules = evaluate(result.clinical, case.patient_age)
+    assessment = latest(session, Report, case.id, kind="assessment")
+    if assessment is not None:
+        result.assessment = (
+            Assessment.model_validate({k: v for k, v in assessment.content.items() if k != "duration_ms"})
+            if not assessment.error else None
+        )
+        result.assessment_error = assessment.error
+    if result.assessment is not None:
+        result.hospitals = recommend(result.assessment.specialty, result.assessment.urgency)
+    elif not result.rejected:
+        result.hospitals = recommend(specialty_for([f.name for f in result.findings]))
 
     local_names: dict[str, str] = {}
     if ai_report is not None:

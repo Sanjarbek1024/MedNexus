@@ -1,18 +1,19 @@
 // Typed client for the MedNexus API. Types mirror backend/app/schemas.py.
 
 export type Language = "uz" | "en" | "ru";
-export type Role = "radiologist" | "resident" | "admin";
+export type Role = "doctor";
+export type Sex = "male" | "female";
+export type Urgency = "routine" | "soon" | "urgent";
 export type CheckStatus = "pass" | "warn" | "fail";
 export type CheckCategory = "quality" | "distribution" | "agreement" | "metadata" | "report";
 export type Level = "high" | "moderate" | "uncertain";
 export type CaseStatus = "queued" | "analyzing" | "ai_ready" | "reviewed" | "image_rejected" | "failed";
 export type Priority = "urgent" | "attention" | "routine";
 export type ReviewAction = "confirm" | "edit" | "reject";
-export type Stage = "quality" | "models" | "explainability" | "report";
+export type Stage = "clinical" | "quality" | "models" | "explainability" | "report";
 export type Trend = "improved" | "stable" | "worsened" | "new" | "resolved";
 
 export interface User { id: number; email: string; full_name: string; role: Role; language: Language; created_at: string }
-export interface AdminUser extends User { is_active: boolean; locked: boolean; last_login_at: string | null }
 
 export interface ViewOption { id: string; label: string; supported: boolean; analyzers: string[] }
 export interface RegionOption { id: string; label: string; supported: boolean; views: ViewOption[] }
@@ -29,6 +30,7 @@ export interface Health {
   database: string;
   analyzers: { id: string; label: string; versions: Record<string, string> }[];
   llm: { provider: string; model: string; configured: boolean };
+  vision: { provider: string; model: string; configured: boolean } | null;
 }
 
 export interface Box { x: number; y: number; width: number; height: number }
@@ -80,6 +82,89 @@ export interface Review {
   added_findings: string[];
   reviewed_at: string;
 }
+export interface Localized { uz: string; en: string; ru: string }
+export type Consciousness = "alert" | "confused" | "voice" | "pain" | "unresponsive";
+export interface Vitals {
+  temperature: number | null;
+  heart_rate: number | null;
+  resp_rate: number | null;
+  systolic: number | null;
+  diastolic: number | null;
+  spo2: number | null;
+  on_oxygen: boolean;
+  consciousness: Consciousness;
+}
+/** Structured intake the physician fills in (every field optional except the complaint). */
+export interface ClinicalData {
+  chief_complaint: string;
+  onset: "" | "sudden" | "gradual";
+  duration: string;
+  severity: "" | "mild" | "moderate" | "severe";
+  symptoms: string[];
+  vitals: Vitals;
+  history: string[];
+  medications: string;
+  allergies: string;
+  smoking: "" | "never" | "former" | "current";
+  exam: string;
+  labs: string;
+}
+export interface RuleFlag { code: string; severity: "critical" | "warning"; value: string }
+export interface ScoreResult { name: string; value: number; band: "low" | "medium" | "high"; partial: boolean; missing: string[] }
+/** Deterministic clinical rules engine output (no model involved). */
+export interface ClinicalRules { scores: ScoreResult[]; flags: RuleFlag[]; priority: Priority; urgency_floor: Urgency }
+/** One executed step of the AI architecture. */
+export interface PipelineStep { id: string; status: "done" | "skipped" | "failed"; model: string; detail: string; ms: number }
+/** One differential item. The evidence fields are absent on assessments written before they existed. */
+export interface DifferentialItem {
+  name: string;
+  probability: number;
+  reasoning: string;
+  /** Supporting evidence, each prefixed by its source ("Rasm: …", "Model: …", "Simptom: …"). */
+  evidence_for?: string[];
+  evidence_against?: string[];
+  /** Tests or exams that would confirm or exclude this item. */
+  confirm_with?: string[];
+  /** Dangerous if missed: must be actively excluded even when unlikely. */
+  cannot_miss?: boolean;
+}
+export interface Assessment {
+  audience: "patient" | "doctor";
+  language: Language;
+  model: string;
+  summary: string;
+  image_observations: string[];
+  differential: DifferentialItem[];
+  /** Danger signs present in the symptoms or the image. */
+  red_flags?: string[];
+  /** Doctor: easily missed points. Patient: things to tell or check with the doctor. */
+  watch_out?: string[];
+  /** One sentence when symptoms and image disagree, else "". */
+  mismatch?: string;
+  causes: string[];
+  urgency: Urgency;
+  urgency_text: string;
+  next_steps: string[];
+  questions_for_doctor: string[];
+  specialty: string;
+  disclaimer: string;
+  /** What the safety critic added or flagged. */
+  critic_notes?: string[];
+  pipeline?: PipelineStep[];
+  /** "clinical" = built from the intake alone, without an image. */
+  mode?: "multimodal" | "clinical";
+}
+export interface Hospital {
+  id: string;
+  names: Localized;
+  city: string;
+  specialties: string[];
+  description: Localized;
+  partner: boolean;
+  emergency: boolean;
+  phone: string | null;
+  website: string | null;
+}
 export interface AuditEvent { id: number; timestamp: string; action: string; actor: string; details: Record<string, unknown>; hash: string }
 export interface PatientRef { id: number; pseudonym: string }
 export interface AnalysisResult {
@@ -110,6 +195,16 @@ export interface AnalysisResult {
   timings_ms: Record<string, number>;
   review: Review | null;
   audit: AuditEvent[];
+  symptoms: string | null;
+  patient_age: number | null;
+  patient_sex: Sex | null;
+  assessment: Assessment | null;
+  assessment_error: string | null;
+  hospitals: Hospital[];
+  /** False for a case built from the clinical intake alone (imaging can be attached later). */
+  has_image: boolean;
+  clinical: ClinicalData | null;
+  rules: ClinicalRules | null;
 }
 export interface CaseSummary {
   id: number;
@@ -129,6 +224,10 @@ export interface CaseSummary {
   reviewer: string | null;
   reviewed_at: string | null;
   error: string | null;
+  /** Urgency of the AI assessment, when the backend includes it in the list. */
+  urgency?: Urgency | null;
+  has_image?: boolean;
+  chief_complaint?: string | null;
 }
 export interface ReviewRequest {
   action: ReviewAction;
@@ -316,6 +415,21 @@ export interface CaseQuery {
   limit?: number;
 }
 
+async function streamCase(path: string, form: FormData, onProgress: (stage: Stage) => void): Promise<AnalysisResult> {
+  const response = await send(path, { method: "POST", body: form, headers: { Accept: "text/event-stream" } });
+  let result: AnalysisResult | null = null;
+  let failure: string | null = null;
+  await readEvents(response, (event, data) => {
+    if (event === "progress") onProgress((data as { stage: Stage }).stage);
+    if (event === "result") result = data as AnalysisResult;
+    if (event === "error") failure = (data as { detail: string }).detail;
+    return event !== "result" && event !== "error";
+  });
+  if (failure) throw new ApiError(failure, 500);
+  if (!result) throw new ApiError("stream ended", 500);
+  return result;
+}
+
 export const api = {
   health: () => request<Health>("/health"),
   capabilities: () => request<Capabilities>("/capabilities"),
@@ -329,10 +443,6 @@ export const api = {
   changePassword: (current_password: string, new_password: string) =>
     request<User>("/auth/change-password", json({ current_password, new_password })),
 
-  users: () => request<AdminUser[]>("/users"),
-  updateUser: (id: number, body: { role?: Role; is_active?: boolean; unlock?: boolean }) =>
-    request<AdminUser>(`/users/${id}`, json(body, "PATCH")),
-
   cases: (query: CaseQuery = {}) => {
     const params = new URLSearchParams(
       Object.entries(query).filter(([, v]) => v !== undefined && v !== "").map(([k, v]) => [k, String(v)]),
@@ -343,6 +453,8 @@ export const api = {
   review: (id: number, body: ReviewRequest) => request<AnalysisResult>(`/cases/${id}/review`, json(body)),
   saveDraft: (id: number, body: ReportSections) => request<AnalysisResult>(`/cases/${id}/report/draft`, json(body, "PUT")),
   regenerateReport: (id: number, language: Language) => request<AnalysisResult>(`/cases/${id}/report`, json({ language })),
+  regenerateAssessment: (id: number, language: Language) =>
+    request<AnalysisResult>(`/cases/${id}/assessment`, json({ language })),
   verifyAudit: () => request<{ valid: boolean; events: number }>("/audit/verify"),
 
   chatHistory: (id: number) => request<ChatMessage[]>(`/cases/${id}/chat`),
@@ -374,27 +486,32 @@ export const api = {
   dashboard: () => request<DashboardStats>(`/stats/dashboard?tz_offset=${new Date().getTimezoneOffset()}`),
   safety: () => request<SafetyStats>("/stats/safety"),
 
-  /** Upload one study; progress events arrive while the models run. */
-  async analyze(
-    file: File,
-    fields: Selection & { patient_id?: number; acquired_on?: string },
+  evaluateRules: (clinical: ClinicalData, age?: number) => request<ClinicalRules>("/clinical/evaluate", json({ clinical, age })),
+
+  /** Create a case from the clinical intake, optionally with an image; progress events stream back. */
+  analyze(
+    file: File | null,
+    fields: Partial<Selection> & {
+      language: Language; patient_id?: number; acquired_on?: string; symptoms?: string; age?: number; sex?: Sex;
+      clinical?: ClinicalData;
+    },
     onProgress: (stage: Stage) => void,
   ): Promise<AnalysisResult> {
     const form = new FormData();
-    form.append("file", file);
-    Object.entries(fields).forEach(([key, value]) => value !== undefined && value !== "" && form.append(key, String(value)));
-    const response = await send("/analyze", { method: "POST", body: form, headers: { Accept: "text/event-stream" } });
-    let result: AnalysisResult | null = null;
-    let failure: string | null = null;
-    await readEvents(response, (event, data) => {
-      if (event === "progress") onProgress((data as { stage: Stage }).stage);
-      if (event === "result") result = data as AnalysisResult;
-      if (event === "error") failure = (data as { detail: string }).detail;
-      return event !== "result" && event !== "error";
+    if (file) form.append("file", file);
+    Object.entries(fields).forEach(([key, value]) => {
+      if (value === undefined || value === "") return;
+      form.append(key, typeof value === "object" ? JSON.stringify(value) : String(value));
     });
-    if (failure) throw new ApiError(failure, 500);
-    if (!result) throw new ApiError("stream ended", 500);
-    return result;
+    return streamCase("/analyze", form, onProgress);
+  },
+
+  /** Attach an image to a clinical case; the differential is rebuilt with it. */
+  attachImaging(caseId: number, file: File, selection: Omit<Selection, "language">, onProgress: (stage: Stage) => void) {
+    const form = new FormData();
+    form.append("file", file);
+    Object.entries(selection).forEach(([key, value]) => form.append(key, value));
+    return streamCase(`/cases/${caseId}/imaging`, form, onProgress);
   },
 
   batch: (files: File[], fields: Selection & { patient_id?: number }) => {

@@ -25,9 +25,10 @@ def _json(nullable: bool = False) -> Column:
 
 
 class Role(StrEnum):
-    RADIOLOGIST = "radiologist"
-    RESIDENT = "resident"
-    ADMIN = "admin"
+    DOCTOR = "doctor"  # MedNexus is a physician tool: worklist, differential, review and sign-off
+
+# Cases without an image use this modality marker; imaging can be attached later.
+CLINICAL = "clinical"
 
 
 class CaseStatus(StrEnum):
@@ -95,6 +96,12 @@ class Case(SQLModel, table=True):
     headline: str | None = Field(default=None, max_length=120)
     finding_count: int = 0
     error: str | None = Field(default=None, max_length=255)
+    # What the person reports alongside the image; used by the multimodal assessment.
+    symptoms: str | None = Field(default=None, max_length=2000)
+    patient_age: int | None = None
+    patient_sex: str | None = Field(default=None, max_length=10)
+    # Structured intake (ClinicalData): complaint, symptoms, vitals, history, exam, labs.
+    clinical: dict | None = Field(default=None, sa_column=_json(nullable=True))
     acquired_at: datetime = Field(default_factory=utcnow, sa_column=_timestamp(index=True))
     created_at: datetime = Field(default_factory=utcnow, sa_column=_timestamp(index=True))
     analyzed_at: datetime | None = Field(default=None, sa_column=_timestamp(nullable=True))
@@ -121,7 +128,7 @@ class Report(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     case_id: int = Field(foreign_key="cases.id", index=True)
-    kind: str = Field(max_length=10)  # "ai" | "physician"
+    kind: str = Field(max_length=10)  # "ai" | "physician" | "assessment"
     language: str = Field(max_length=5)
     content: dict = Field(sa_column=_json())
     model: str | None = Field(default=None, max_length=80)

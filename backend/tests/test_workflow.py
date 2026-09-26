@@ -27,7 +27,7 @@ def test_triage_rules() -> None:
 
 
 def test_worklist_puts_urgent_open_cases_first(make_user: Callable[[str], TestClient], sample: Callable[[str], Path]) -> None:
-    doctor = make_user(Role.RADIOLOGIST)
+    doctor = make_user(Role.DOCTOR)
     normal = upload(doctor, sample("chest_pa_normal.jpg")).json()
     pneumonia = upload(doctor, sample("chest_pa_pneumonia.jpg")).json()
     assert pneumonia["priority"] == "urgent" and "Consolidation" in pneumonia["priority_reason"]
@@ -102,7 +102,7 @@ def test_prior_comparison(client: TestClient, sample: Callable[[str], Path]) -> 
 
 
 def test_training_blind_read(make_user: Callable[[str], TestClient], sample: Callable[[str], Path]) -> None:
-    doctor, resident = make_user(Role.RADIOLOGIST), make_user(Role.RESIDENT)
+    doctor, resident = make_user(Role.DOCTOR), make_user(Role.DOCTOR)
     case = upload(doctor, sample("chest_pa_heart_failure.jpg")).json()
     ai = [f["name"] for f in case["findings"]]
     doctor.post(f"/api/cases/{case['case_id']}/review", json={
@@ -139,7 +139,7 @@ def test_training_blind_read(make_user: Callable[[str], TestClient], sample: Cal
 
 
 def test_dashboard_and_safety_monitor(make_user: Callable[[str], TestClient], sample: Callable[[str], Path]) -> None:
-    doctor, admin = make_user(Role.RADIOLOGIST), make_user(Role.ADMIN)
+    doctor, admin = make_user(Role.DOCTOR), make_user(Role.DOCTOR)
     case = upload(doctor, sample("chest_pa_pneumonia.jpg")).json()
     upload(doctor, sample("hand_xray.jpg"))
     names = [f["name"] for f in case["findings"]]

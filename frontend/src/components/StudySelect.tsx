@@ -81,7 +81,7 @@ export function StudySelect({ label, value, options, onChange }: Props) {
         aria-label={label}
         onClick={() => (open ? setOpen(false) : openList())}
         onKeyDown={onKeyDown}
-        className={`flex w-full items-center justify-between rounded-2xl border bg-white px-4 py-3 text-left text-[15px] font-semibold text-ink shadow-soft transition ${
+        className={`flex w-full items-center justify-between rounded-2xl border bg-surface px-4 py-3 text-left text-[15px] font-semibold text-ink shadow-soft transition ${
           open ? "border-emerald-400 ring-4 ring-emerald-100" : "border-slate-200 hover:border-slate-300"
         }`}
       >
@@ -98,7 +98,7 @@ export function StudySelect({ label, value, options, onChange }: Props) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.98 }}
             transition={{ duration: 0.16 }}
-            className="absolute z-30 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 p-1.5 shadow-xl shadow-slate-900/10 backdrop-blur-xl"
+            className="absolute z-30 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200/80 bg-surface/95 p-1.5 shadow-xl shadow-black/10 backdrop-blur-xl"
           >
             {options.map((option, index) => (
               <li
@@ -121,7 +121,7 @@ export function StudySelect({ label, value, options, onChange }: Props) {
                 <span className="flex items-center gap-2">
                   {option.label}
                   {!option.supported && (
-                    <span className="chip bg-slate-100 text-[10px] font-bold tracking-wide text-slate-500 uppercase">{t("analyze.comingSoon")}</span>
+                    <span className="chip bg-slate-100 text-[10px] font-semibold tracking-wide text-slate-500 uppercase">{t("analyze.comingSoon")}</span>
                   )}
                 </span>
                 {option.id === value && <Check className="size-4 text-emerald-600" />}

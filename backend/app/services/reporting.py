@@ -33,7 +33,7 @@ Rules:
 7. Each finding's "explanation" says in plain language what the finding means on a radiograph and what it can be associated with (1-2 sentences).
 8. "next_steps": 2-4 short suggestions for the physician that follow from the findings (for example clinical correlation, comparison with prior imaging, an additional view). Never give treatment instructions.
 9. "limitations": 2-4 short items: relevant warnings from "safety_checks", what the models cannot assess, and that the scores are not probabilities.
-10. Write every text value in natural, grammatical {language}, using standard medical terminology of that language.
+10. Write every text value in natural, grammatical {language}, using standard medical terminology of that language. Translate pathology names and terms such as "threshold" too; only model names stay in English.
 
 Return only a JSON object of exactly this shape:
 {{"summary": "2-4 sentences",

@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi.responses import JSONResponse
 from sqlmodel import select
 
 from app.api.deps import CurrentUser, SessionDep, client_ip, limit
@@ -115,14 +116,19 @@ def login(body: LoginRequest, request: Request, response: Response, session: Ses
     return user_out(user)
 
 
-@router.post("/refresh", response_model=UserOut)
-def refresh(request: Request, response: Response, session: SessionDep) -> UserOut:
+@router.post("/refresh", response_model=UserOut, responses={401: {"description": "Session expired"}})
+def refresh(request: Request, response: Response, session: SessionDep) -> UserOut | JSONResponse:
     token = request.cookies.get(REFRESH_COOKIE)
     claims = decode_token(token, "refresh") if token else None
     user = session.get(User, int(claims["sub"])) if claims else None
     if user is None or not user.is_active or claims["ver"] != user.token_version:
-        end_session(response)
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session expired. Please sign in again.")
+        # Returned, not raised: an exception response would drop the cookie deletions, and the
+        # browser would retry the dead session on every page load.
+        expired = JSONResponse(
+            {"detail": "Session expired. Please sign in again."}, status_code=status.HTTP_401_UNAUTHORIZED
+        )
+        end_session(expired)
+        return expired
     start_session(response, user)
     return user_out(user)
 

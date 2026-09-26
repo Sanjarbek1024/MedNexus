@@ -49,7 +49,7 @@ export function SafetyPanel({ result }: { result: AnalysisResult }) {
     <section className="card p-5" aria-labelledby="safety-title">
       <div className="flex items-center gap-2">
         <ShieldCheck className="size-5 text-emerald-600" />
-        <h2 id="safety-title" className="font-bold text-ink">{t("safety.title")}</h2>
+        <h2 id="safety-title" className="font-semibold text-ink">{t("safety.title")}</h2>
       </div>
       <ul className="mt-2 divide-y divide-slate-100">
         {GROUPS.map((category) => {

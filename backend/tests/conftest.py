@@ -56,7 +56,7 @@ def sign_in(email: str, password: str = PASSWORD) -> TestClient:
 def make_user(app_client: TestClient) -> Callable[[str], TestClient]:
     """Create a user with the given role and return a signed-in client."""
 
-    def create(role: str = Role.RADIOLOGIST) -> TestClient:
+    def create(role: str = Role.DOCTOR) -> TestClient:
         email = f"{role}-{secrets.token_hex(4)}@example.org"
         with Session(get_engine()) as session:
             session.add(User(email=email, full_name=f"Dr. {role.title()}", role=role, password_hash=hash_password(PASSWORD)))
@@ -68,8 +68,8 @@ def make_user(app_client: TestClient) -> Callable[[str], TestClient]:
 
 @pytest.fixture(scope="session")
 def client(make_user: Callable[[str], TestClient]) -> TestClient:
-    """A signed-in radiologist."""
-    return make_user(Role.RADIOLOGIST)
+    """A signed-in doctor."""
+    return make_user(Role.DOCTOR)
 
 
 @pytest.fixture(scope="session")

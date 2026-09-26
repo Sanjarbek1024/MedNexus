@@ -36,7 +36,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               animate={{ opacity: 1, x: 0, scale: 1 }}
               exit={{ opacity: 0, x: 40 }}
               role={toast.tone === "error" ? "alert" : "status"}
-              className="pointer-events-auto flex items-start gap-3 rounded-2xl border border-white/80 bg-white/95 p-4 text-sm text-ink shadow-xl shadow-slate-900/10 backdrop-blur-xl"
+              className="pointer-events-auto flex items-start gap-3 rounded-2xl border border-line bg-surface/95 p-4 text-sm text-ink shadow-xl shadow-black/10 backdrop-blur-xl"
             >
               {ICONS[toast.tone]}
               <span className="flex-1">{toast.message}</span>

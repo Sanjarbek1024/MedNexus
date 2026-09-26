@@ -1,0 +1,172 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <rect x="0" y="0" width="1920" height="1080" fill="#FFFFFF"/>
+
+  <!-- Header -->
+  <text x="80" y="128" font-family="Segoe UI, Arial, sans-serif" font-size="60" font-weight="700" fill="#0C1A14">Qanday ishlaydi</text>
+  <text x="80" y="180" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="400" fill="#5B6B64">Shikoyatdan shifokor imzosigacha — tasvir ixtiyoriy</text>
+
+  <!-- Logo -->
+  <text x="1740" y="130" text-anchor="end" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700" fill="#0C1A14">MedNexus</text>
+  <rect x="1760" y="84" width="72" height="72" rx="18" fill="#07110B"/>
+  <g transform="translate(1774.4,101.6) scale(0.8)">
+    <path d="M11 12.4 38 2.2v8.9L11 21.4z" fill="#5CFF63" stroke="#5CFF63" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M2.2 29.4 29.4 19v9.2L2.2 38.6z" fill="#5CFF63" stroke="#5CFF63" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M24.2 33.6 52 23.2v9.2L24.2 42.8z" fill="#5CFF63" stroke="#5CFF63" stroke-width="2.4" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Guardrails panel -->
+  <rect x="1212" y="280" width="620" height="172" rx="24" fill="#FFFFFF" stroke="#E3E8E6" stroke-width="2"/>
+  <text x="1238" y="328" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" fill="#0F7A17">Himoya choralari</text>
+  <circle cx="1252" cy="368" r="14" fill="#5CFF63"/>
+  <polyline points="1245,368 1250,373 1259,363" fill="none" stroke="#04130A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="1280" y="376" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="400" fill="#0C1A14">Taxmin ≤ 90%</text>
+  <circle cx="1252" cy="412" r="14" fill="#5CFF63"/>
+  <polyline points="1245,412 1250,417 1259,407" fill="none" stroke="#04130A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="1280" y="420" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="400" fill="#0C1A14">Tashxis emas — qarorni shifokor qiladi</text>
+
+  <!-- Step 3: optional imaging branch -->
+  <rect x="580" y="280" width="420" height="172" rx="24" fill="#F2F9FD" stroke="#0284C7" stroke-width="2" stroke-dasharray="10 8"/>
+  <circle cx="628" cy="328" r="22" fill="#0284C7"/>
+  <text x="628" y="336" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" fill="#FFFFFF">3</text>
+  <text x="666" y="339" font-family="Segoe UI, Arial, sans-serif" font-size="32" font-weight="700" fill="#0C1A14">Tasvir <tspan fill="#0284C7">(ixtiyoriy)</tspan></text>
+  <g transform="translate(934,308)" fill="none" stroke="#0284C7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 13V4h9M27 4h9v9M36 27v9h-9M13 36H4v-9"/>
+    <path d="M17.5 14C13.5 14 11 20 11 25.5C11 28.8 13 29.8 15.5 29.2L17.5 28.4Z"/>
+    <path d="M22.5 14C26.5 14 29 20 29 25.5C29 28.8 27 29.8 24.5 29.2L22.5 28.4Z"/>
+    <line x1="20" y1="9" x2="20" y2="19"/>
+  </g>
+  <text font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="400" fill="#5B6B64">
+    <tspan x="606" y="386">Rentgen yoki MRT: CNN, ViT,</tspan>
+    <tspan x="606" dy="33">YOLO modellari va Grad-CAM</tspan>
+  </text>
+
+  <!-- Branch connectors (dashed sky) -->
+  <circle cx="640" cy="524" r="5" fill="#0284C7"/>
+  <line x1="640" y1="519" x2="640" y2="468" stroke="#0284C7" stroke-width="2.5" stroke-dasharray="7 6"/>
+  <polygon points="633,468 640,456 647,468" fill="#0284C7"/>
+  <circle cx="940" cy="452" r="5" fill="#0284C7"/>
+  <line x1="940" y1="458" x2="940" y2="508" stroke="#0284C7" stroke-width="2.5" stroke-dasharray="7 6"/>
+  <polygon points="933,508 940,520 947,508" fill="#0284C7"/>
+
+  <!-- Main flow arrows -->
+  <line x1="377" y1="682" x2="396" y2="682" stroke="#5B6B64" stroke-width="2.5"/>
+  <polygon points="395,675 405,682 395,689" fill="#5B6B64"/>
+  <line x1="709" y1="682" x2="864" y2="682" stroke="#5B6B64" stroke-width="2.5"/>
+  <polygon points="863,675 873,682 863,689" fill="#5B6B64"/>
+  <text x="790" y="666" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="400" fill="#5B6B64">tasvirsiz</text>
+  <line x1="1177" y1="682" x2="1196" y2="682" stroke="#5B6B64" stroke-width="2.5"/>
+  <polygon points="1195,675 1205,682 1195,689" fill="#5B6B64"/>
+  <line x1="1509" y1="682" x2="1528" y2="682" stroke="#5B6B64" stroke-width="2.5"/>
+  <polygon points="1527,675 1537,682 1527,689" fill="#5B6B64"/>
+
+  <!-- Step 1 -->
+  <rect x="80" y="524" width="288" height="316" rx="24" fill="#F6F8F7" stroke="#E3E8E6" stroke-width="2"/>
+  <circle cx="128" cy="574" r="22" fill="#07110B"/>
+  <text x="128" y="582" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" fill="#5CFF63">1</text>
+  <g transform="translate(302,554)" fill="none" stroke="#0F7A17" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="7" y="5" width="26" height="33" rx="4"/>
+    <rect x="14" y="2" width="12" height="7" rx="2" fill="#F6F8F7"/>
+    <line x1="13" y1="18" x2="27" y2="18"/>
+    <line x1="13" y1="25" x2="27" y2="25"/>
+    <line x1="13" y1="32" x2="22" y2="32"/>
+  </g>
+  <text font-family="Segoe UI, Arial, sans-serif" font-size="32" font-weight="700" fill="#0C1A14">
+    <tspan x="106" y="648">Ma’lumot</tspan>
+    <tspan x="106" dy="38">kiritish</tspan>
+  </text>
+  <text font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="400" fill="#5B6B64">
+    <tspan x="106" y="734">Shikoyat, simptomlar,</tspan>
+    <tspan x="106" dy="34">vital ko‘rsatkichlar,</tspan>
+    <tspan x="106" dy="34">anamnez, tahlillar</tspan>
+  </text>
+
+  <!-- Step 2 -->
+  <rect x="412" y="524" width="288" height="316" rx="24" fill="#F6F8F7" stroke="#E3E8E6" stroke-width="2"/>
+  <circle cx="460" cy="574" r="22" fill="#07110B"/>
+  <text x="460" y="582" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" fill="#5CFF63">2</text>
+  <g transform="translate(634,554)" fill="none" stroke="#0F7A17" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="3,9 6.5,12.5 12,5.5"/>
+    <line x1="18" y1="9" x2="37" y2="9"/>
+    <polyline points="3,20 6.5,23.5 12,16.5"/>
+    <line x1="18" y1="20" x2="37" y2="20"/>
+    <polyline points="3,31 6.5,34.5 12,27.5"/>
+    <line x1="18" y1="31" x2="37" y2="31"/>
+  </g>
+  <text font-family="Segoe UI, Arial, sans-serif" font-size="32" font-weight="700" fill="#0C1A14">
+    <tspan x="438" y="648">Klinik</tspan>
+    <tspan x="438" dy="38">qoidalar</tspan>
+  </text>
+  <text font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="400" fill="#5B6B64">
+    <tspan x="438" y="734">NEWS2, qSOFA,</tspan>
+    <tspan x="438" dy="34">CRB-65: AI’siz triaj</tspan>
+    <tspan x="438" dy="34">va xavf belgilari</tspan>
+  </text>
+
+  <!-- Step 4 -->
+  <rect x="880" y="524" width="288" height="316" rx="24" fill="#F6F8F7" stroke="#E3E8E6" stroke-width="2"/>
+  <circle cx="928" cy="574" r="22" fill="#07110B"/>
+  <text x="928" y="582" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" fill="#5CFF63">4</text>
+  <g transform="translate(1102,554)">
+    <rect x="4" y="8" width="32" height="6" rx="3" fill="#0F7A17"/>
+    <rect x="4" y="19" width="22" height="6" rx="3" fill="#6FB076"/>
+    <rect x="4" y="30" width="13" height="6" rx="3" fill="#B5D8B8"/>
+  </g>
+  <text font-family="Segoe UI, Arial, sans-serif" font-size="32" font-weight="700" fill="#0C1A14">
+    <tspan x="906" y="648">AI</tspan>
+    <tspan x="906" dy="38">differensial</tspan>
+  </text>
+  <text font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="400" fill="#5B6B64">
+    <tspan x="906" y="734">3–5 ta ehtimol,</tspan>
+    <tspan x="906" dy="34">dalillari va tasdiqlash</tspan>
+    <tspan x="906" dy="34">usuli bilan</tspan>
+  </text>
+
+  <!-- Step 5 -->
+  <rect x="1212" y="524" width="288" height="316" rx="24" fill="#F6F8F7" stroke="#E3E8E6" stroke-width="2"/>
+  <circle cx="1260" cy="574" r="22" fill="#07110B"/>
+  <text x="1260" y="582" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" fill="#5CFF63">5</text>
+  <g transform="translate(1434,554)" fill="none" stroke="#0F7A17" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M20 3L34 8V19C34 28 28 34 20 37C12 34 6 28 6 19V8Z"/>
+    <line x1="20" y1="14" x2="20" y2="26"/>
+    <line x1="14" y1="20" x2="26" y2="20"/>
+  </g>
+  <text font-family="Segoe UI, Arial, sans-serif" font-size="32" font-weight="700" fill="#0C1A14">
+    <tspan x="1238" y="648">Xavfsizlik</tspan>
+    <tspan x="1238" dy="38">tanqidchisi</tspan>
+  </text>
+  <text font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="400" fill="#5B6B64">
+    <tspan x="1238" y="734">Ikkinchi AI o‘tkazib</tspan>
+    <tspan x="1238" dy="34">yuborilgan xavfli</tspan>
+    <tspan x="1238" dy="34">tashxisni qo‘shadi</tspan>
+  </text>
+
+  <!-- Step 6 (highlight) -->
+  <rect x="1544" y="524" width="288" height="316" rx="24" fill="#5CFF63"/>
+  <circle cx="1592" cy="574" r="22" fill="#07110B"/>
+  <text x="1592" y="582" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" fill="#5CFF63">6</text>
+  <g transform="translate(1766,554)" fill="none" stroke="#04130A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 27C8 14 13 13 13 22C13 30 19 31 22 22C24 17 27 18 28 24C29 28 33 27 37 21"/>
+    <line x1="3" y1="36" x2="37" y2="36"/>
+  </g>
+  <text font-family="Segoe UI, Arial, sans-serif" font-size="32" font-weight="700" fill="#04130A">
+    <tspan x="1570" y="648">Shifokor</tspan>
+    <tspan x="1570" dy="38">qarori</tspan>
+  </text>
+  <text font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="400" fill="#04130A">
+    <tspan x="1570" y="734">Shifokor ko‘rib</tspan>
+    <tspan x="1570" dy="34">chiqadi va imzolaydi</tspan>
+  </text>
+
+  <!-- Grouping brackets -->
+  <path d="M412 880V896H700V880M556 896V908" fill="none" stroke="#5B6B64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="556" y="944" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="#0C1A14">AI’siz qoidalar</text>
+  <text x="556" y="976" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="400" fill="#5B6B64">Formulalar asosida</text>
+
+  <path d="M728 880V896H1500V880M1114 896V908" fill="none" stroke="#5B6B64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="1114" y="944" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="#0C1A14">AI modellar</text>
+  <text x="1114" y="976" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="400" fill="#5B6B64">DenseNet-121 + ResNet-50 · YOLOv7 · ViT-B/16 · Qwen VLM · gpt-oss-120b</text>
+
+  <path d="M1544 880V896H1832V880M1688 896V908" fill="none" stroke="#5B6B64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="1688" y="944" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="#0C1A14">Inson nazorati</text>
+  <text x="1688" y="976" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="400" fill="#5B6B64">SHA-256 audit zanjiri</text>
+</svg>

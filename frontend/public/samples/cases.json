@@ -1,0 +1,385 @@
+[
+  {
+    "id": "chest_pain",
+    "age": 61,
+    "sex": "male",
+    "image": null,
+    "clinical": {
+      "onset": "sudden",
+      "severity": "severe",
+      "symptoms": [
+        "chest_pain",
+        "sweating",
+        "dyspnea"
+      ],
+      "vitals": {
+        "temperature": 36.8,
+        "heart_rate": 112,
+        "resp_rate": 22,
+        "systolic": 96,
+        "diastolic": 60,
+        "spo2": 94,
+        "on_oxygen": false,
+        "consciousness": "alert"
+      },
+      "history": [
+        "hypertension",
+        "diabetes"
+      ],
+      "smoking": "current"
+    },
+    "locale": {
+      "uz": {
+        "title": "O‘tkir ko‘krak og‘rig‘i",
+        "chief_complaint": "Ko‘krak ortidagi siquvchi og‘riq",
+        "duration": "1 soat",
+        "hpi": "1 soat oldin tinch holatda boshlangan ko‘krak ortidagi siquvchi og‘riq, chap qo‘l va jag‘ga tarqaladi, sovuq ter bosgan.",
+        "medications": "Metformin 1000 mg, amlodipin 5 mg",
+        "exam": "Terisi rangpar va nam. O‘pkada xirillash yo‘q, yurak tonlari bo‘g‘iq.",
+        "labs": "",
+        "expected": "O‘tkir koronar sindrom, o‘pka arteriyasi emboliyasi, aorta qatlamlanishi — barchasi «o‘tkazib yubormang». NEWS2 7, qSOFA 2 → shoshilinch. Xavfsizlik tanqidchisi qo‘shimcha xavfli tashxis qo‘shishi mumkin."
+      },
+      "en": {
+        "title": "Acute chest pain",
+        "chief_complaint": "Crushing retrosternal chest pain",
+        "duration": "1 hour",
+        "hpi": "Crushing retrosternal pain that started at rest 1 hour ago, radiating to the left arm and jaw, with cold sweat.",
+        "medications": "Metformin 1000 mg, amlodipine 5 mg",
+        "exam": "Pale, clammy skin. No crackles, muffled heart sounds.",
+        "labs": "",
+        "expected": "Acute coronary syndrome, pulmonary embolism, aortic dissection, all cannot-miss. NEWS2 7, qSOFA 2 → urgent. The safety critic may add another dangerous diagnosis."
+      },
+      "ru": {
+        "title": "Острая боль в груди",
+        "chief_complaint": "Давящая загрудинная боль",
+        "duration": "1 час",
+        "hpi": "Давящая загрудинная боль, возникла в покое 1 час назад, иррадиирует в левую руку и челюсть, холодный пот.",
+        "medications": "Метформин 1000 мг, амлодипин 5 мг",
+        "exam": "Кожа бледная, влажная. Хрипов нет, тоны сердца приглушены.",
+        "labs": "",
+        "expected": "Острый коронарный синдром, ТЭЛА, расслоение аорты — все «не пропустить». NEWS2 7, qSOFA 2 → срочно. Критик безопасности может добавить ещё один опасный диагноз."
+      }
+    }
+  },
+  {
+    "id": "tuberculosis",
+    "age": 34,
+    "sex": "female",
+    "image": null,
+    "clinical": {
+      "onset": "gradual",
+      "severity": "moderate",
+      "symptoms": [
+        "cough",
+        "night_sweats",
+        "weight_loss",
+        "hemoptysis",
+        "fever"
+      ],
+      "vitals": {
+        "temperature": 37.8,
+        "heart_rate": 94,
+        "resp_rate": 18,
+        "systolic": 112,
+        "diastolic": 70,
+        "spo2": 97,
+        "on_oxygen": false,
+        "consciousness": "alert"
+      },
+      "history": [],
+      "smoking": "never"
+    },
+    "locale": {
+      "uz": {
+        "title": "Uzoq davom etayotgan yo‘tal",
+        "chief_complaint": "5 haftadan beri yo‘tal",
+        "duration": "5 hafta",
+        "hpi": "5 haftadan beri balg‘amli yo‘tal, kechqurun subfebril harorat, kechasi terlash, 2 oyda 6 kg ozgan, ba’zan balg‘amda qon tomirchalari.",
+        "medications": "",
+        "exam": "O‘ng o‘pka cho‘qqisida nafas susaygan, mayda pufakli xirillash.",
+        "labs": "ECHT 48 mm/soat, leykotsitlar 9.1",
+        "expected": "O‘pka sili yetakchi va «o‘tkazib yubormang» (O‘zbekistonda sil keng tarqalgan). Tanqidchi o‘pka o‘smasini qo‘shishi mumkin. Keyin ko‘krak rentgenini qo‘shib ko‘rsating."
+      },
+      "en": {
+        "title": "Persistent cough",
+        "chief_complaint": "Cough for 5 weeks",
+        "duration": "5 weeks",
+        "hpi": "Productive cough for 5 weeks, evening low-grade fever, night sweats, 6 kg weight loss in 2 months, occasional blood-streaked sputum.",
+        "medications": "",
+        "exam": "Reduced breath sounds and fine crackles over the right apex.",
+        "labs": "ESR 48 mm/h, WBC 9.1",
+        "expected": "Pulmonary tuberculosis leads and is cannot-miss (TB is common in Uzbekistan). The critic may add lung cancer. Then add a chest X-ray from the case page."
+      },
+      "ru": {
+        "title": "Длительный кашель",
+        "chief_complaint": "Кашель 5 недель",
+        "duration": "5 недель",
+        "hpi": "Кашель с мокротой 5 недель, вечерний субфебрилитет, ночная потливость, похудание на 6 кг за 2 месяца, иногда прожилки крови в мокроте.",
+        "medications": "",
+        "exam": "Ослабленное дыхание и мелкопузырчатые хрипы над верхушкой справа.",
+        "labs": "СОЭ 48 мм/ч, лейкоциты 9.1",
+        "expected": "Туберкулёз лёгких на первом месте и «не пропустить» (в Узбекистане туберкулёз распространён). Критик может добавить рак лёгкого. Затем добавьте рентген со страницы случая."
+      }
+    }
+  },
+  {
+    "id": "sepsis",
+    "age": 72,
+    "sex": "male",
+    "image": null,
+    "clinical": {
+      "onset": "sudden",
+      "severity": "severe",
+      "symptoms": [
+        "fever",
+        "chills",
+        "confusion"
+      ],
+      "vitals": {
+        "temperature": 39.4,
+        "heart_rate": 128,
+        "resp_rate": 26,
+        "systolic": 88,
+        "diastolic": 50,
+        "spo2": 91,
+        "on_oxygen": false,
+        "consciousness": "confused"
+      },
+      "history": [
+        "diabetes",
+        "ckd"
+      ],
+      "smoking": "former"
+    },
+    "locale": {
+      "uz": {
+        "title": "Isitma va hush chalkashligi",
+        "chief_complaint": "Yuqori isitma va chalkash hush",
+        "duration": "1 kun",
+        "hpi": "Kecha titroq bilan isitma boshlangan, bugun ertalabdan beri chalkash gapiryapti, siydik kam ajralmoqda. 3 kun oldin siyganda achishish bo‘lgan.",
+        "medications": "Insulin glargin",
+        "exam": "Bel sohasida urib ko‘rilganda o‘ngda og‘riq. Terisi issiq, quruq.",
+        "labs": "Leykotsitlar 18.4, CRP 210 mg/L, laktat 3.8 mmol/L, kreatinin 210 µmol/L",
+        "expected": "Urosepsis / septik shok. NEWS2 16, qSOFA 3, shok indeksi 1.45 → kritik, shoshilinch. Qoidalar mexanizmi AI’siz ham darhol shoshilinch deb belgilaydi."
+      },
+      "en": {
+        "title": "Fever and confusion",
+        "chief_complaint": "High fever and confusion",
+        "duration": "1 day",
+        "hpi": "Fever with rigors since yesterday, confused since this morning, passing little urine. Burning on urination 3 days ago.",
+        "medications": "Insulin glargine",
+        "exam": "Right costovertebral angle tenderness. Warm, dry skin.",
+        "labs": "WBC 18.4, CRP 210 mg/L, lactate 3.8 mmol/L, creatinine 210 µmol/L",
+        "expected": "Urosepsis / septic shock. NEWS2 16, qSOFA 3, shock index 1.45 → critical, urgent. The rules engine flags it as urgent even without AI."
+      },
+      "ru": {
+        "title": "Лихорадка и спутанность",
+        "chief_complaint": "Высокая температура и спутанность сознания",
+        "duration": "1 день",
+        "hpi": "Со вчерашнего дня лихорадка с ознобом, с утра спутанность, мочи мало. 3 дня назад жжение при мочеиспускании.",
+        "medications": "Инсулин гларгин",
+        "exam": "Болезненность при поколачивании справа в поясничной области. Кожа горячая, сухая.",
+        "labs": "Лейкоциты 18.4, СРБ 210 мг/л, лактат 3.8 ммоль/л, креатинин 210 мкмоль/л",
+        "expected": "Уросепсис / септический шок. NEWS2 16, qSOFA 3, шоковый индекс 1.45 → критично, срочно. Движок правил отмечает срочность даже без ИИ."
+      }
+    }
+  },
+  {
+    "id": "pneumonia_xray",
+    "age": 46,
+    "sex": "male",
+    "image": {
+      "file": "chest_pa_pneumonia.jpg",
+      "modality": "xray",
+      "region": "chest",
+      "view": "PA"
+    },
+    "clinical": {
+      "onset": "sudden",
+      "severity": "moderate",
+      "symptoms": [
+        "cough",
+        "sputum",
+        "fever",
+        "chest_pain",
+        "dyspnea"
+      ],
+      "vitals": {
+        "temperature": 38.6,
+        "heart_rate": 108,
+        "resp_rate": 24,
+        "systolic": 118,
+        "diastolic": 74,
+        "spo2": 93,
+        "on_oxygen": false,
+        "consciousness": "alert"
+      },
+      "history": [],
+      "smoking": "current"
+    },
+    "locale": {
+      "uz": {
+        "title": "Yo‘tal va isitma + ko‘krak rentgeni",
+        "chief_complaint": "Yo‘tal va isitma",
+        "duration": "3 kun",
+        "hpi": "3 kundan beri yo‘tal, sariq balg‘am, harorat 38,5, o‘ng tomonda nafas olganda ko‘krak og‘rig‘i.",
+        "medications": "",
+        "exam": "O‘ng pastki bo‘lakda krepitatsiya va bronxial nafas.",
+        "labs": "Leykotsitlar 15.2, CRP 96 mg/L",
+        "expected": "Rentgenda konsolidatsiya + Grad-CAM; differensialda jamiyatda orttirilgan pnevmoniya yetakchi. Tasvir va simptomlar birga tahlil qilinadi."
+      },
+      "en": {
+        "title": "Cough and fever + chest X-ray",
+        "chief_complaint": "Cough and fever",
+        "duration": "3 days",
+        "hpi": "Cough for 3 days with yellow sputum, fever 38.5 °C, right-sided chest pain on breathing.",
+        "medications": "",
+        "exam": "Crackles and bronchial breathing over the right lower lobe.",
+        "labs": "WBC 15.2, CRP 96 mg/L",
+        "expected": "Consolidation on the X-ray with Grad-CAM; community-acquired pneumonia leads the differential. Image and symptoms are analyzed together."
+      },
+      "ru": {
+        "title": "Кашель и температура + рентген",
+        "chief_complaint": "Кашель и температура",
+        "duration": "3 дня",
+        "hpi": "Кашель 3 дня с жёлтой мокротой, температура 38,5, боль справа в груди при дыхании.",
+        "medications": "",
+        "exam": "Крепитация и бронхиальное дыхание справа внизу.",
+        "labs": "Лейкоциты 15.2, СРБ 96 мг/л",
+        "expected": "Консолидация на рентгене с Grad-CAM; внебольничная пневмония во главе дифференциала. Снимок и симптомы анализируются вместе."
+      }
+    }
+  },
+  {
+    "id": "wrist_xray",
+    "age": 11,
+    "sex": "male",
+    "image": {
+      "file": "wrist_buckle_fracture.jpg",
+      "modality": "xray",
+      "region": "extremity",
+      "view": "PA"
+    },
+    "clinical": {
+      "onset": "sudden",
+      "severity": "moderate",
+      "symptoms": [
+        "pain",
+        "swelling",
+        "trauma",
+        "limited_motion"
+      ],
+      "vitals": {
+        "temperature": 36.7,
+        "heart_rate": 96,
+        "resp_rate": 18,
+        "systolic": null,
+        "diastolic": null,
+        "spo2": 99,
+        "on_oxygen": false,
+        "consciousness": "alert"
+      },
+      "history": [],
+      "smoking": ""
+    },
+    "locale": {
+      "uz": {
+        "title": "Bilak jarohati + rentgen",
+        "chief_complaint": "Yiqilgandan keyin bilak og‘rig‘i",
+        "duration": "3 soat",
+        "hpi": "Velosipeddan cho‘zilgan qo‘l ustiga yiqilgan, bilagi shishgan va qimirlatganda og‘riyapti.",
+        "medications": "",
+        "exam": "Bilak distal qismida shish, bosganda og‘riq, aniq deformatsiya yo‘q, qon aylanishi saqlangan.",
+        "labs": "",
+        "expected": "YOLOv7 sinishni ramka bilan ko‘rsatadi (~0.81); differensialda bilak suyagining bukilma sinishi yetakchi."
+      },
+      "en": {
+        "title": "Wrist injury + X-ray",
+        "chief_complaint": "Wrist pain after a fall",
+        "duration": "3 hours",
+        "hpi": "Fell off a bicycle onto an outstretched hand; the wrist is swollen and hurts on movement.",
+        "medications": "",
+        "exam": "Swelling and tenderness of the distal forearm, no obvious deformity, circulation intact.",
+        "labs": "",
+        "expected": "YOLOv7 draws a box around the fracture (~0.81); a distal radius buckle fracture leads the differential."
+      },
+      "ru": {
+        "title": "Травма запястья + рентген",
+        "chief_complaint": "Боль в запястье после падения",
+        "duration": "3 часа",
+        "hpi": "Упал с велосипеда на вытянутую руку, запястье отекло и болит при движении.",
+        "medications": "",
+        "exam": "Отёк и болезненность дистального отдела предплечья, явной деформации нет, кровообращение сохранено.",
+        "labs": "",
+        "expected": "YOLOv7 выделяет перелом рамкой (~0.81); во главе дифференциала пряжкообразный перелом лучевой кости."
+      }
+    }
+  },
+  {
+    "id": "headache_mri",
+    "age": 52,
+    "sex": "female",
+    "image": {
+      "file": "brain_mri_glioma.jpg",
+      "modality": "mri",
+      "region": "head",
+      "view": "Axial"
+    },
+    "clinical": {
+      "onset": "gradual",
+      "severity": "moderate",
+      "symptoms": [
+        "headache",
+        "nausea",
+        "vomiting",
+        "vision_change"
+      ],
+      "vitals": {
+        "temperature": 36.6,
+        "heart_rate": 72,
+        "resp_rate": 14,
+        "systolic": 138,
+        "diastolic": 86,
+        "spo2": 98,
+        "on_oxygen": false,
+        "consciousness": "alert"
+      },
+      "history": [
+        "hypertension"
+      ],
+      "smoking": "never"
+    },
+    "locale": {
+      "uz": {
+        "title": "Kuchayib borayotgan bosh og‘rig‘i + MRT",
+        "chief_complaint": "Kuchayib borayotgan bosh og‘rig‘i",
+        "duration": "2 oy",
+        "hpi": "2 oydan beri bosh og‘rig‘i, ertalab kuchayadi, ko‘ngil aynishi, ba’zan qusish va ko‘rish xiralashishi.",
+        "medications": "Lozartan 50 mg",
+        "exam": "Fundoskopiyada ko‘rish nervi diski shishi shubhasi. O‘choqli nevrologik belgi yo‘q.",
+        "labs": "",
+        "expected": "ViT-B/16 gliomani ko‘rsatadi (~0.96); differensialda miya o‘smasi va intrakranial gipertenziya, neyroxirurgiyaga yo‘naltirish."
+      },
+      "en": {
+        "title": "Worsening headache + MRI",
+        "chief_complaint": "Progressive headache",
+        "duration": "2 months",
+        "hpi": "Headache for 2 months, worse in the morning, with nausea, occasional vomiting and blurred vision.",
+        "medications": "Losartan 50 mg",
+        "exam": "Suspected papilledema on fundoscopy. No focal neurological signs.",
+        "labs": "",
+        "expected": "ViT-B/16 flags glioma (~0.96); brain tumor and raised intracranial pressure lead the differential, neurosurgery referral."
+      },
+      "ru": {
+        "title": "Нарастающая головная боль + МРТ",
+        "chief_complaint": "Нарастающая головная боль",
+        "duration": "2 месяца",
+        "hpi": "Головная боль 2 месяца, сильнее по утрам, тошнота, иногда рвота и затуманивание зрения.",
+        "medications": "Лозартан 50 мг",
+        "exam": "Подозрение на отёк диска зрительного нерва. Очаговой неврологической симптоматики нет.",
+        "labs": "",
+        "expected": "ViT-B/16 показывает глиому (~0.96); опухоль мозга и внутричерепная гипертензия во главе дифференциала, направление к нейрохирургу."
+      }
+    }
+  }
+]

@@ -26,13 +26,13 @@ export function ReportCard({ result, onUpdate }: { result: AnalysisResult; onUpd
 
   return (
     <section className="card overflow-hidden" aria-labelledby="report-title">
-      <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-emerald-50/60 to-transparent px-5 py-4">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-emerald-50/60 to-transparent px-5 py-4">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <FileText className="size-5 text-emerald-600" />
-          <h2 id="report-title" className="font-bold text-ink">{t("report.title")}</h2>
+          <h2 id="report-title" className="font-semibold text-ink">{t("report.title")}</h2>
           {result.status !== "reviewed" && <span className="chip bg-amber-50 text-amber-700 ring-1 ring-amber-200">{t("status.draft")}</span>}
         </div>
-        <div className="no-print flex gap-1 rounded-xl bg-white/80 p-0.5 ring-1 ring-slate-200" role="group" aria-label={t("report.regenerate")}>
+        <div className="no-print flex shrink-0 gap-1 rounded-xl bg-surface/80 p-0.5 ring-1 ring-slate-200" role="group" aria-label={t("report.regenerate")}>
           {(["uz", "en", "ru"] as const).map((lang) => (
             <button
               key={lang}
@@ -41,8 +41,8 @@ export function ReportCard({ result, onUpdate }: { result: AnalysisResult; onUpd
               onClick={() => regenerate(lang)}
               aria-pressed={report?.language === lang}
               title={t("report.regenerate")}
-              className={`flex w-10 items-center justify-center rounded-lg py-1 text-xs font-bold uppercase transition ${
-                report?.language === lang ? "bg-emerald-500 text-white" : "text-slate-500 hover:bg-slate-100"
+              className={`flex w-10 items-center justify-center rounded-lg py-1 text-xs font-semibold uppercase transition ${
+                report?.language === lang ? "bg-brand text-on-brand" : "text-slate-500 hover:bg-slate-100"
               }`}
             >
               {loading === lang ? <LoaderCircle className="size-3.5 animate-spin" /> : lang}

@@ -1,13 +1,28 @@
 @import "tailwindcss";
+@import "./theme.css";
 
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* Runtime values live in theme.css (light and dark); these register the utility names. */
 @theme {
-  --font-sans: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, sans-serif;
-  --color-canvas: #f7faf8;
-  --color-ink: #0f1f1a;
-  --shadow-soft: 0 1px 2px rgb(15 31 26 / 0.04), 0 10px 30px -12px rgb(15 31 26 / 0.12);
-  --shadow-glow: 0 12px 36px -8px rgb(16 185 129 / 0.55);
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "SFMono-Regular", monospace;
+  --color-canvas: #f6f8f7;
+  --color-surface: #fff;
+  --color-raised: #fafbfa;
+  --color-line: #e3e8e6;
+  --color-ink: #0c1a14;
+  --color-brand: #5cff63;
+  --color-brand-ink: #0f7a17;
+  --color-on-brand: #04130a;
+  --color-glow: rgb(34 212 44 / 0.35);
+  --color-night: #050807;
+  --shadow-soft: 0 1px 2px rgb(8 20 14 / 0.04), 0 8px 24px -12px rgb(8 20 14 / 0.1);
+  --shadow-glow: 0 10px 32px -10px var(--color-glow);
   --animate-dash: dash 1.4s linear infinite;
   --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-scan: scan 3.2s ease-in-out infinite alternate;
+  --animate-ping-slow: ping 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
 @keyframes dash {
@@ -22,16 +37,49 @@
   }
 }
 
+@keyframes scan {
+  from {
+    top: -8%;
+  }
+  to {
+    top: 96%;
+  }
+}
+
 @layer base {
   html {
     scrollbar-gutter: stable;
+    font-feature-settings: "ss01", "cv11";
   }
   body {
     @apply bg-canvas text-ink antialiased;
+    min-height: 100vh;
+  }
+  /* Ambient backdrop: a faint measurement grid under a brand glow, fixed behind everything. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(56rem 28rem at 12% -12%, color-mix(in oklab, var(--color-brand) 9%, transparent), transparent 70%),
+      radial-gradient(40rem 26rem at 108% 4%, color-mix(in oklab, var(--color-sky-500) 6%, transparent), transparent 70%);
+  }
+  [data-theme="dark"] body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
     background-image:
-      radial-gradient(60rem 30rem at 10% -10%, rgb(16 185 129 / 0.1), transparent 60%),
-      radial-gradient(50rem 30rem at 110% 10%, rgb(20 184 166 / 0.08), transparent 60%);
-    background-attachment: fixed;
+      linear-gradient(to right, rgb(255 255 255 / 0.028) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(255 255 255 / 0.028) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 30%, transparent 80%);
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--color-brand) 45%, transparent);
   }
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-emerald-500;
@@ -39,10 +87,21 @@
   input[type="range"] {
     @apply accent-emerald-500;
   }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-slate-300) transparent;
+  }
 }
 
 @utility card {
-  @apply rounded-2xl border border-white/70 bg-white/80 shadow-soft backdrop-blur-xl;
+  @apply rounded-2xl border border-line bg-surface shadow-soft;
+  [data-theme="dark"] & {
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04), 0 16px 40px -24px rgb(0 0 0 / 0.8);
+  }
+}
+
+@utility glass {
+  @apply border-line bg-canvas/75 backdrop-blur-xl backdrop-saturate-150;
 }
 
 @utility chip {
@@ -50,28 +109,49 @@
 }
 
 @utility btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50;
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition duration-200 select-none active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100;
 }
 
 @utility btn-primary {
-  @apply btn bg-emerald-500 text-white shadow-glow hover:bg-emerald-600 active:bg-emerald-700;
+  @apply btn bg-brand text-on-brand shadow-glow hover:brightness-105 hover:shadow-[0_12px_36px_-8px_var(--color-glow)];
 }
 
 @utility btn-ghost {
-  @apply btn border border-slate-200 bg-white/90 text-slate-700 hover:border-slate-300 hover:bg-white;
+  @apply btn border border-line bg-surface text-slate-700 hover:border-slate-300 hover:text-ink;
+}
+
+@utility btn-dark {
+  @apply btn bg-ink text-canvas hover:opacity-90;
 }
 
 @utility field {
-  @apply w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-ink placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 focus:outline-none;
+  @apply w-full rounded-xl border border-slate-200 bg-surface px-3 py-2 text-sm text-ink transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 focus:outline-none;
 }
 
 @utility eyebrow {
-  @apply text-[11px] font-bold tracking-[0.14em] text-slate-400 uppercase;
+  @apply font-mono text-[11px] font-medium tracking-[0.12em] text-slate-400 uppercase;
+}
+
+@utility text-brand-gradient {
+  background-image: linear-gradient(100deg, var(--color-emerald-700), var(--color-emerald-500) 50%, var(--color-sky-600));
+  background-clip: text;
+  color: transparent;
+}
+
+@utility grid-lines {
+  background-image:
+    linear-gradient(to right, color-mix(in oklab, var(--color-ink) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--color-ink) 7%, transparent) 1px, transparent 1px);
+  background-size: 40px 40px;
 }
 
 @media print {
   body {
     background: white;
+  }
+  body::before,
+  body::after {
+    display: none;
   }
   .no-print {
     display: none !important;

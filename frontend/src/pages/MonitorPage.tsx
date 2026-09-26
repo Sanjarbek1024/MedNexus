@@ -27,9 +27,9 @@ export function MonitorPage() {
       <PageHeader eyebrow={t("nav.monitor")} title={t("monitor.title")} subtitle={t("monitor.subtitle")} />
 
       {!stats ? (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-28" />)}</div>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 2xl:grid-cols-6">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-28" />)}</div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 2xl:grid-cols-6">
           <StatCard icon={ScanLine} label={t("monitor.analyses")} value={stats.analyses} />
           <StatCard icon={Ban} label={t("monitor.rejected")} value={stats.rejected_images} delay={0.04} />
           <StatCard icon={CircleHelp} label={t("monitor.lowConfidence")} value={rate(stats.low_confidence_rate)} delay={0.08} />
@@ -41,7 +41,7 @@ export function MonitorPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card p-6">
-          <h2 className="flex items-center gap-2 font-bold text-ink"><Activity className="size-5 text-emerald-600" /> {t("monitor.weekly")}</h2>
+          <h2 className="flex items-center gap-2 font-semibold text-ink"><Activity className="size-5 text-emerald-600" /> {t("monitor.weekly")}</h2>
           <div className="mt-4">
             {stats ? (
               <RateLine
@@ -57,7 +57,7 @@ export function MonitorPage() {
         </motion.section>
 
         <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="card p-6">
-          <h2 className="flex items-center gap-2 font-bold text-ink"><Ban className="size-5 text-rose-500" /> {t("monitor.rejectionReasons")}</h2>
+          <h2 className="flex items-center gap-2 font-semibold text-ink"><Ban className="size-5 text-rose-500" /> {t("monitor.rejectionReasons")}</h2>
           {stats && Object.keys(stats.rejection_reasons).length === 0 ? (
             <EmptyState icon={ShieldCheck} title={t("dashboard.noData")} />
           ) : (
@@ -70,7 +70,7 @@ export function MonitorPage() {
                       <div className="h-full rounded-full bg-rose-400" style={{ width: `${(count / Math.max(...Object.values(stats.rejection_reasons))) * 100}%` }} />
                     </div>
                   </div>
-                  <span className="font-bold tabular-nums text-ink">{count}</span>
+                  <span className="font-semibold tabular-nums text-ink">{count}</span>
                 </li>
               ))}
             </ul>
@@ -80,7 +80,7 @@ export function MonitorPage() {
 
       <section className="card overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-5">
-          <h2 className="font-bold text-ink">{t("monitor.perPathology")}</h2>
+          <h2 className="font-semibold text-ink">{t("monitor.perPathology")}</h2>
           <Legend items={parts.map((p) => ({ label: p.label, color: p.color }))} />
         </div>
         {stats && stats.per_pathology.length === 0 ? (

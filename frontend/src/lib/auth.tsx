@@ -65,4 +65,8 @@ export function useAuth(): Auth {
   return context;
 }
 
-export const canSign = (role: Role | undefined): boolean => role === "radiologist" || role === "admin";
+export const canSign = (role: Role | undefined): boolean => role === "doctor";
+export const isDoctor = canSign;
+
+/** Where a physician lands after signing in. */
+export const homeFor = (role: Role): string => ({ doctor: "/dashboard" })[role];

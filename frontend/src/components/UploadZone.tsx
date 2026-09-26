@@ -43,7 +43,7 @@ export function UploadZone({ files, preview, multiple = false, onFiles, compact 
       onDragLeave={() => setDragging(false)}
       onDrop={onDrop}
       className={`group relative flex ${compact ? "min-h-56" : "min-h-[26rem]"} flex-col items-center justify-center overflow-hidden rounded-[28px] transition ${
-        dragging ? "bg-emerald-50/80" : "bg-white/60"
+        dragging ? "bg-emerald-50/80" : "bg-surface/60"
       } shadow-soft backdrop-blur-xl`}
     >
       <svg className="pointer-events-none absolute inset-0 size-full" aria-hidden>
@@ -83,7 +83,7 @@ export function UploadZone({ files, preview, multiple = false, onFiles, compact 
                 <RotateCcw className="size-4" /> {t("analyze.replace")}
               </button>
             </div>
-            <div className="flex h-80 w-full items-center justify-center overflow-hidden rounded-2xl bg-slate-950">
+            <div className="flex h-80 w-full items-center justify-center overflow-hidden rounded-2xl bg-night">
               {preview ? (
                 <img src={preview} alt="" className="h-full w-full object-contain" />
               ) : (
@@ -107,7 +107,7 @@ export function UploadZone({ files, preview, multiple = false, onFiles, compact 
             </div>
             <ul className="max-h-60 space-y-1.5 overflow-y-auto pr-1">
               {files.map((file, i) => (
-                <li key={`${file.name}-${i}`} className="flex items-center justify-between rounded-xl bg-white/80 px-3 py-2 text-sm ring-1 ring-slate-200/70">
+                <li key={`${file.name}-${i}`} className="flex items-center justify-between rounded-xl bg-surface/80 px-3 py-2 text-sm ring-1 ring-slate-200/70">
                   <span className="truncate">{file.name}</span>
                   <button type="button" className="text-slate-400 hover:text-rose-500" onClick={() => onFiles(files.filter((_, j) => j !== i))} aria-label="×">
                     <X className="size-4" />
@@ -121,12 +121,12 @@ export function UploadZone({ files, preview, multiple = false, onFiles, compact 
             <motion.div
               animate={{ y: [0, -6, 0] }}
               transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-              className="flex size-20 items-center justify-center rounded-3xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-glow"
+              className="flex size-20 items-center justify-center rounded-3xl bg-brand text-on-brand shadow-glow"
             >
               {multiple ? <Files className="size-9" /> : <CloudUpload className="size-9" />}
             </motion.div>
             <div>
-              <div className="text-lg font-bold text-ink">{multiple ? t("analyze.dropBatch") : t("analyze.drop")}</div>
+              <div className="text-lg font-semibold text-ink">{multiple ? t("analyze.dropBatch") : t("analyze.drop")}</div>
               <div className="mt-1 text-sm text-slate-500">
                 <span className="font-semibold text-emerald-700 underline-offset-4 group-hover:underline">{t("analyze.browse")}</span> · {t("analyze.formats")}
               </div>

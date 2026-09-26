@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 
 import { Logo } from "../components/AppShell";
 import { useI18n } from "../i18n";
-import { api, type AnalysisResult } from "../lib/api";
+import { api, type AnalysisResult, type ApiError } from "../lib/api";
 import { caseNumber, modelName } from "../lib/format";
 import { Link } from "../lib/router";
 
@@ -14,10 +14,17 @@ export function ReportPage({ caseId }: { caseId: number }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.case(caseId).then(setResult, (e: Error) => setError(e.message));
-  }, [caseId]);
+    api.case(caseId).then(setResult, (e: ApiError) => setError(e.status === 404 ? t("case.notFound") : e.message || t("common.error")));
+  }, [caseId, t]);
 
-  if (error) return <div className="p-10 text-center text-slate-600">{error}</div>;
+  if (error) {
+    return (
+      <div className="flex flex-col items-center gap-4 p-10 text-center text-slate-600">
+        <p>{error}</p>
+        <Link href="/worklist" className="btn-ghost"><ArrowLeft className="size-4" /> {t("case.history")}</Link>
+      </div>
+    );
+  }
   if (!result) return <div className="flex justify-center p-24 text-slate-400"><LoaderCircle className="size-8 animate-spin" /></div>;
 
   const report = result.physician_report ?? { ...(result.suggested_report ?? { findings: "", impression: "", recommendations: "" }), status: "draft" as const, author: null, signed_at: null, updated_at: result.created_at };
@@ -26,21 +33,21 @@ export function ReportPage({ caseId }: { caseId: number }) {
   const heatmap = result.findings.find((f) => f.heatmap)?.heatmap;
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="no-print sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/90 px-6 py-3 backdrop-blur">
+    <div data-theme="light" className="min-h-screen bg-surface text-ink">
+      <div className="no-print sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-100 bg-surface/90 px-4 py-3 backdrop-blur sm:px-6">
         <Link href={`/cases/${caseId}`} className="btn-ghost"><ArrowLeft className="size-4" /> {t("common.back")}</Link>
         <button type="button" className="btn-primary" onClick={() => window.print()}><Printer className="size-4" /> {t("print.print")}</button>
       </div>
-      <article className="mx-auto max-w-3xl px-8 py-10 text-[15px] text-slate-800">
-        <header className="flex items-start justify-between border-b-2 border-emerald-500 pb-5">
-          <div className="flex items-center gap-3">
+      <article className="mx-auto max-w-3xl px-5 py-10 text-[15px] text-slate-800 sm:px-8">
+        <header className="flex flex-wrap items-start justify-between gap-3 border-b-2 border-emerald-500 pb-5">
+          <div className="flex min-w-0 items-center gap-3">
             <Logo className="size-10" />
             <div>
-              <div className="text-xl font-extrabold text-ink">{t("print.title")}</div>
+              <div className="text-xl font-semibold text-ink">{t("print.title")}</div>
               <div className="text-sm text-slate-500">MedNexus · {t("common.caseNumber", { id: caseNumber(result.case_id) })}</div>
             </div>
           </div>
-          <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">{t("print.note")}</span>
+          <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200 sm:shrink-0">{t("print.note")}</span>
         </header>
 
         <dl className="mt-6 grid grid-cols-2 gap-x-8 gap-y-3 text-sm sm:grid-cols-4">
@@ -54,13 +61,13 @@ export function ReportPage({ caseId }: { caseId: number }) {
           <div className="space-y-6">
             {(["findings", "impression", "recommendations"] as const).map((key) => (
               <section key={key}>
-                <h2 className="text-xs font-bold tracking-[0.14em] text-emerald-700 uppercase">{key === "findings" ? t("review.findingsSection") : t(`review.${key}`)}</h2>
+                <h2 className="text-xs font-semibold tracking-[0.14em] text-emerald-700 uppercase">{key === "findings" ? t("review.findingsSection") : t(`review.${key}`)}</h2>
                 <p className="mt-2 leading-relaxed whitespace-pre-line">{report[key] || "—"}</p>
               </section>
             ))}
           </div>
           <figure className="space-y-2">
-            <div className="relative overflow-hidden rounded-xl bg-slate-900">
+            <div className="relative overflow-hidden rounded-xl bg-night">
               <img src={result.image.url} alt="" className="w-full" />
               {heatmap && (
                 <img src={heatmap.url} alt="" className="absolute opacity-70" style={{ left: `${heatmap.box.x * 100}%`, top: `${heatmap.box.y * 100}%`, width: `${heatmap.box.width * 100}%`, height: `${heatmap.box.height * 100}%` }} />

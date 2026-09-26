@@ -3,7 +3,7 @@ import { Activity, ArrowRight, CheckCheck, Clock, Handshake, Inbox, ScanLine, Si
 import { useEffect, useState } from "react";
 
 import { GroupedBars, Legend, SERIES } from "../components/charts";
-import { EmptyState, PageHeader, PriorityBadge, Skeleton, StatCard, Waiting } from "../components/ui";
+import { CaseThumb, EmptyState, PageHeader, PriorityBadge, Skeleton, StatCard, Waiting } from "../components/ui";
 import { useI18n } from "../i18n";
 import { api, type DashboardStats } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -29,7 +29,7 @@ export function DashboardPage() {
   }, []);
 
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? "greetingMorning" : hour < 18 ? "greetingAfternoon" : "greetingEvening";
+  const greeting = hour >= 5 && hour < 12 ? "greetingMorning" : hour >= 12 && hour < 18 ? "greetingAfternoon" : "greetingEvening";
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6">
@@ -46,11 +46,11 @@ export function DashboardPage() {
       />
 
       {!stats ? (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 2xl:grid-cols-6">
           {Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-28" />)}
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 2xl:grid-cols-6">
           <StatCard icon={Inbox} label={t("dashboard.openCases")} value={stats.open_cases} />
           <StatCard icon={Siren} label={t("dashboard.urgentOpen")} value={stats.urgent_open} tone={stats.urgent_open ? "text-rose-600" : "text-ink"} delay={0.04} />
           <StatCard icon={Upload} label={t("dashboard.queuedToday")} value={stats.queued_today} delay={0.08} />
@@ -75,7 +75,7 @@ export function DashboardPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="card p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="flex items-center gap-2 font-bold text-ink"><Activity className="size-5 text-emerald-600" /> {t("dashboard.weekTitle")}</h2>
+            <h2 className="flex items-center gap-2 font-semibold text-ink"><Activity className="size-5 text-emerald-600" /> {t("dashboard.weekTitle")}</h2>
             <Legend items={[{ label: t("dashboard.uploaded"), color: SERIES.blue }, { label: t("dashboard.reviewed"), color: SERIES.emerald }]} />
           </div>
           <div className="mt-4">
@@ -94,7 +94,7 @@ export function DashboardPage() {
         </motion.section>
 
         <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="card p-6">
-          <h2 className="flex items-center gap-2 font-bold text-ink"><Siren className="size-5 text-rose-500" /> {t("dashboard.urgentTitle")}</h2>
+          <h2 className="flex items-center gap-2 font-semibold text-ink"><Siren className="size-5 text-rose-500" /> {t("dashboard.urgentTitle")}</h2>
           {!stats ? (
             <div className="mt-4 space-y-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-14" />)}</div>
           ) : stats.urgent_cases.length === 0 ? (
@@ -104,16 +104,17 @@ export function DashboardPage() {
               {stats.urgent_cases.map((item) => (
                 <li key={item.id}>
                   <Link href={`/cases/${item.id}`} className="group flex items-center gap-3 py-3">
-                    {item.thumbnail && <img src={item.thumbnail} alt="" className="size-11 rounded-xl bg-slate-900 object-cover" />}
+                    <CaseThumb thumbnail={item.thumbnail} />
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 text-sm font-bold text-ink">
-                        {caseNumber(item.id)} <span className="font-mono text-xs font-medium text-slate-400">{item.patient.pseudonym}</span>
+                      <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
+                        <span className="shrink-0">{caseNumber(item.id)}</span>
+                        <span className="truncate font-mono text-xs font-medium text-slate-400">{item.patient.pseudonym}</span>
                       </div>
                       <div className="truncate text-xs text-slate-500">
-                        {study(item)} · {item.headline ? finding(item.headline) : t("worklist.noFindings")}
+                        {item.chief_complaint ?? study(item)} · {item.headline ? finding(item.headline) : t("worklist.noFindings")}
                       </div>
                     </div>
-                    <div className="flex flex-col items-end gap-1 text-xs text-slate-500">
+                    <div className="flex shrink-0 flex-col items-end gap-1 text-xs text-slate-500">
                       <PriorityBadge priority={item.priority} reason={item.priority_reason} />
                       <Waiting since={item.created_at} />
                     </div>

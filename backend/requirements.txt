@@ -30,3 +30,4 @@ onnxruntime==1.30.0
 # Pinned to long-established releases: newer binaries are blocked by Windows Smart App Control.
 pandas==2.2.3
 scikit-learn==1.6.1
+matplotlib==3.10.8  # via pytorch-grad-cam; the 3.11 binary is blocked too

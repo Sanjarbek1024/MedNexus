@@ -1,4 +1,5 @@
-"""Seed a demo workspace: three accounts and 16 analyzed studies spread over the last week.
+"""Seed a demo workspace: the doctor account, analyzed studies over the last week and the six
+sample cases (with their AI differential) waiting in the worklist.
 
 Every study goes through the real pipeline (safety gates, image models and, when GROQ_API_KEY
 is set in backend/.env, the AI report in Uzbek), so all findings and scores are actual model
@@ -17,10 +18,12 @@ deletes a local SQLite database and its uploads; stop the API server before usin
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import shutil
 import sys
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -57,6 +60,7 @@ from app.schemas import ReportSections, ReviewAction, ReviewRequest, Selection, 
 from app.security import hash_password  # noqa: E402
 from app.services import training, uploads  # noqa: E402
 from app.services.analysis import AnalysisService  # noqa: E402
+from app.services.assessment import PatientContext  # noqa: E402
 from app.services.cases import assemble  # noqa: E402
 from app.services.llm import LLM  # noqa: E402
 from app.services.pipeline import AnalysisPipeline  # noqa: E402
@@ -76,15 +80,13 @@ class Account:
 
 
 ACCOUNTS = {
-    "radiologist": Account("radiologist@mednexus.uz", "Dr. Dilnoza Karimova", Role.RADIOLOGIST),
-    "resident": Account("resident@mednexus.uz", "Dr. Jasur Toshmatov", Role.RESIDENT),
-    "admin": Account("admin@mednexus.uz", "Aziza Rahimova", Role.ADMIN),
+    "doctor": Account("doctor@mednexus.uz", "Dr. Dilnoza Karimova", Role.DOCTOR),
 }
 
 
 @dataclass(frozen=True)
 class SignOff:
-    """The radiologist's review, ``after`` the upload."""
+    """The doctor's review, ``after`` the upload."""
 
     action: ReviewAction
     after: timedelta
@@ -92,7 +94,7 @@ class SignOff:
     notes: str = ""
     findings: str = ""  # with ``recommendations``: a full report instead of the AI-prefilled one
     recommendations: str = ""
-    disagree: tuple[str, ...] = ()  # AI findings the radiologist rejects
+    disagree: tuple[str, ...] = ()  # AI findings the doctor rejects
     added: tuple[str, ...] = ()  # findings the AI missed
 
 
@@ -103,15 +105,21 @@ class Study:
     ago: timedelta  # upload time
     region: str = "chest"
     view: str = "PA"
-    owner: str = "radiologist"
+    modality: str = "xray"
+    owner: str = "doctor"
     patient_of: str | None = None  # key of an earlier study of the same patient
     sign_off: SignOff | None = None
     draft: ReportSections | None = None  # the owner's unsigned report
+    symptoms: str | None = None  # history of present illness
+    clinical: dict | None = None  # structured intake (ClinicalData)
+    age: int | None = None
+    sex: str | None = None
+    optional: bool = False  # skipped when its sample image has not been downloaded
 
 
 @dataclass(frozen=True)
 class Attempt:
-    """A resident's blind read of a reviewed study."""
+    """A doctor's blind read of a reviewed study in training mode."""
 
     study: str
     selected: tuple[str, ...]
@@ -126,6 +134,10 @@ CONFIRM, EDIT, REJECT = ReviewAction.CONFIRM, ReviewAction.EDIT, ReviewAction.RE
 STUDIES = [
     Study("prior", "chest_pa_normal.jpg", 183 * DAY + 3 * HOUR, sign_off=SignOff(
         CONFIRM, 40 * MINUTE, "Ko‘krak qafasi a’zolarida o‘tkir patologik o‘zgarishlar aniqlanmadi.")),
+    # Same DICOM PatientID as samples/chest_pa_pneumonia.dcm: uploading that file in the demo
+    # links it to this patient, so Compare shows a six-month interval.
+    Study("dicom", "chest_pa_normal.dcm", 180 * DAY, sign_off=SignOff(
+        CONFIRM, 25 * MINUTE, "Ko‘krak qafasi a’zolarida patologik o‘zgarishlar aniqlanmadi.")),
     Study("greenstick", "wrist_greenstick_fracture.jpg", 6 * DAY + 2 * HOUR, region="extremity", view="AP",
           sign_off=SignOff(CONFIRM, 220 * MINUTE, "Bilak suyagi distal qismining to‘liqsiz (yashil novda tipidagi) sinishi.")),
     Study("buckle", "wrist_buckle_fracture.jpg", 5 * DAY + 4 * HOUR, region="extremity", sign_off=SignOff(
@@ -147,18 +159,45 @@ STUDIES = [
         CONFIRM, 22 * MINUTE, "O‘ng yuqori bo‘lakda konsolidatsiya, pnevmoniyaga mos.")),
     Study("kitten", "photo_kitten.jpg", DAY + 6 * HOUR),  # a photograph: rejected by the quality gate
     Study("heart_failure_open", "chest_pa_heart_failure.jpg", DAY + 3 * HOUR),
-    Study("resident_normal", "chest_pa_normal_2.png", DAY + HOUR, owner="resident"),
+    Study("second_normal", "chest_pa_normal_2.png", DAY + HOUR),
     Study("normal", "chest_pa_normal_2.png", 200 * MINUTE, sign_off=SignOff(
         CONFIRM, 35 * MINUTE, "Ko‘krak qafasi rentgenogrammasida patologik o‘zgarishlar aniqlanmadi.")),
-    Study("dicom", "chest_pa_normal.dcm", 130 * MINUTE),
     Study("salter_harris", "wrist_salter_harris_fracture.jpg", 85 * MINUTE, region="extremity"),
     Study("follow_up", "chest_pa_pneumonia.jpg", 45 * MINUTE, patient_of="prior"),
-    Study("resident_draft", "chest_nih_00000001_000.png", 30 * MINUTE, owner="resident", draft=ReportSections(
+    Study("draft", "chest_nih_00000001_000.png", 30 * MINUTE, draft=ReportSections(
         findings="Yurak soyasi kengaygan.",
         impression="Kardiomegaliyaga shubha. Radiolog tasdig‘i kerak.",
         recommendations="Oldingi tasvirlar bilan solishtirish.",
     )),
 ]
+
+# The six teaching cases of the New case page ("Load sample case"), analyzed ahead of time so
+# they are waiting in the worklist with their differential. Same file as the web app uses.
+SAMPLE_CASES = ROOT / "frontend" / "public" / "samples" / "cases.json"
+EMPTY_VITALS = {"temperature": None, "heart_rate": None, "resp_rate": None, "systolic": None, "diastolic": None,
+                "spo2": None, "on_oxygen": False, "consciousness": "alert"}
+
+
+def sample_case_studies() -> list[Study]:
+    studies = []
+    for number, case in enumerate(json.loads(SAMPLE_CASES.read_text(encoding="utf-8"))):
+        text, image = case["locale"]["uz"], case.get("image")
+        clinical = {
+            "chief_complaint": text["chief_complaint"], "onset": "", "duration": text["duration"], "severity": "",
+            "symptoms": [], "history": [], "medications": text["medications"], "allergies": "", "smoking": "",
+            "exam": text["exam"], "labs": text["labs"], **case["clinical"],
+        }
+        clinical["vitals"] = {**EMPTY_VITALS, **case["clinical"].get("vitals", {})}
+        studies.append(Study(
+            f"sample_{case['id']}", image["file"] if image else "", (70 - 10 * number) * MINUTE,
+            region=image["region"] if image else "none", view=image["view"] if image else "none",
+            modality=image["modality"] if image else "clinical",
+            symptoms=text["hpi"], clinical=clinical, age=case["age"], sex=case["sex"],
+        ))
+    return studies
+
+
+STUDIES += sample_case_studies()
 
 ATTEMPTS = [
     Attempt("heart_failure", ("Lung opacity", "Edema", "Cardiomegaly"), 2 * DAY + HOUR, ((0.3, 0.62), (0.7, 0.6))),
@@ -191,8 +230,9 @@ def build_service(settings: Settings) -> AnalysisService:
     """The services the API builds at startup (see app.main.lifespan)."""
     registry = AnalyzerRegistry.from_yaml(settings.registry_path)
     registry.load(select_device(settings.device))
-    llm = LLM(settings.groq_api_key, settings.groq_model, settings.groq_timeout_s)
-    return AnalysisService(AnalysisPipeline(registry), ReportWriter(llm), settings)
+    llm = LLM(settings.groq_api_key, settings.groq_model, settings.groq_timeout_s, max_retries=3)
+    vision = LLM(settings.groq_api_key, settings.groq_vision_model, settings.groq_vision_timeout_s, max_retries=3)
+    return AnalysisService(AnalysisPipeline(registry), ReportWriter(llm), settings, vision)
 
 
 def create_accounts(session: Session) -> dict[str, int]:
@@ -233,7 +273,7 @@ def backdate(session: Session, case: Case, created: datetime, reviewed: datetime
     for analysis in session.exec(select(Analysis).where(Analysis.case_id == case.id)):
         analysis.created_at = analyzed
     for report in session.exec(select(Report).where(Report.case_id == case.id)):
-        if report.kind == "ai":
+        if report.kind in ("ai", "assessment"):
             report.created_at = report.updated_at = analyzed
         elif reviewed:
             report.created_at = report.updated_at = report.signed_at = reviewed
@@ -243,20 +283,37 @@ def backdate(session: Session, case: Case, created: datetime, reviewed: datetime
     session.commit()
 
 
-def seed_studies(service: AnalysisService, user_ids: dict[str, int]) -> tuple[dict[str, int], dict[str, int]]:
-    """Upload, analyze and (where planned) review every study. Returns case and patient ids by key."""
+def seed_studies(
+    service: AnalysisService, user_ids: dict[str, int], studies: list[Study] | None = None, pause_s: float = 0
+) -> tuple[dict[str, int], dict[str, int]]:
+    """Upload, analyze and (where planned) review every study. Returns case and patient ids by key.
+
+    ``pause_s`` waits between studies, to stay under the LLM provider's per-minute token limit."""
+    studies = STUDIES if studies is None else studies
     engine = get_engine()
     case_ids: dict[str, int] = {}
     patient_ids: dict[str, int] = {}
-    for number, study in enumerate(STUDIES, start=1):
+    for number, study in enumerate(studies, start=1):
+        if number > 1 and pause_s:
+            time.sleep(pause_s)
+        if study.sample and not (SAMPLES_DIR / study.sample).exists():
+            print(f"  [{number:2}/{len(studies)}] {study.sample:34} skipped: sample not downloaded")
+            continue
         created = NOW - study.ago
-        upload = uploads.sanitize((SAMPLES_DIR / study.sample).read_bytes())
-        image = decode_upload(upload.data, upload.sha256)
         with Session(engine) as session:
             owner = session.get(User, user_ids[study.owner])
-            selection = Selection(modality="xray", region=study.region, view=study.view, language=owner.language)
-            patient = resolve_patient(session, owner, upload, patient_ids.get(study.patient_of))
-            case = service.create_case(session, owner, upload, image, selection, patient, created - ACQUISITION_LEAD)
+            context = PatientContext(study.symptoms, study.age, study.sex, clinical=study.clinical)
+            if not study.sample:
+                patient = resolve_patient(session, owner, None, patient_ids.get(study.patient_of))
+                case = service.create_clinical_case(session, owner, patient, owner.language, context)
+            else:
+                upload = uploads.sanitize((SAMPLES_DIR / study.sample).read_bytes())
+                image = decode_upload(upload.data, upload.sha256)
+                selection = Selection(modality=study.modality, region=study.region, view=study.view, language=owner.language)
+                patient = resolve_patient(session, owner, upload, patient_ids.get(study.patient_of))
+                case = service.create_case(
+                    session, owner, upload, image, selection, patient, created - ACQUISITION_LEAD, context
+                )
             case_ids[study.key], patient_ids[study.key] = case.id, patient.id
 
         service.run(case_ids[study.key], lambda stage: None)
@@ -266,7 +323,7 @@ def seed_studies(service: AnalysisService, user_ids: dict[str, int]) -> tuple[di
             reviewed = None
             if study.sign_off and case.status == CaseStatus.AI_READY:
                 request = review_request(session, case, study.sign_off)
-                service.review(session, case, request, session.get(User, user_ids["radiologist"]))
+                service.review(session, case, request, session.get(User, user_ids["doctor"]))
                 reviewed = created + study.sign_off.after
             if study.draft and case.status == CaseStatus.AI_READY:
                 service.save_draft(session, case, study.draft, session.get(User, user_ids[study.owner]))
@@ -276,13 +333,13 @@ def seed_studies(service: AnalysisService, user_ids: dict[str, int]) -> tuple[di
                 outcome += " - NOT reviewed: the planned review needs an analyzed image"
             elif reviewed:
                 outcome += f", review: {study.sign_off.action}"
-            print(f"  [{number:2}/{len(STUDIES)}] {study.sample:34} {study.region:9} -> {outcome}")
+            print(f"  [{number:2}/{len(studies)}] {study.sample or '(intake only)':34} {study.region:9} -> {outcome}")
     return case_ids, patient_ids
 
 
 def seed_training(user_id: int, case_ids: dict[str, int]) -> None:
     with Session(get_engine()) as session:
-        resident = session.get(User, user_id)
+        doctor = session.get(User, user_id)
         for plan in ATTEMPTS:
             if session.get(Case, case_ids[plan.study]).status != CaseStatus.REVIEWED:
                 print(f"  Skipped the training attempt on '{plan.study}': the case was not reviewed")
@@ -290,7 +347,7 @@ def seed_training(user_id: int, case_ids: dict[str, int]) -> None:
             request = TrainingAttemptRequest(
                 selected=list(plan.selected), marks=[{"x": x, "y": y} for x, y in plan.marks]
             )
-            reveal = training.attempt(session, resident, case_ids[plan.study], request)
+            reveal = training.attempt(session, doctor, case_ids[plan.study], request)
             session.get(TrainingAttempt, reveal.attempt_id).created_at = NOW - plan.ago
             session.commit()
 
@@ -321,10 +378,24 @@ def summarize(settings: Settings, service: AnalysisService, follow_up_patient: i
     else:
         print("  AI reports: none (GROQ_API_KEY is not set); findings are shown without the narrative")
     print(f"  Prior comparison: patient {pseudonym} has {studies} chest studies about 6 months apart")
-    print(f"  Training: {attempts} resident attempts")
+    print(f"  Training: {attempts} blind-read attempts")
     print(f"\nSign in with password {PASSWORD}:")
     for account in ACCOUNTS.values():
         print(f"  {account.email:26} {account.full_name:22} {account.role}")
+
+
+def add_sample_cases(settings: Settings) -> None:
+    """Analyze the six sample cases for the demo doctor in an existing database (the server may keep running)."""
+    with Session(get_engine()) as session:
+        doctor = session.exec(select(User).where(User.email == ACCOUNTS["doctor"].email)).first()
+    if doctor is None:
+        sys.exit("The demo doctor account does not exist: run this script without --samples first.")
+    studies = sample_case_studies()
+    print("Loading models...")
+    service = build_service(settings)
+    print(f"Adding {len(studies)} sample cases (AI: {'on' if service.writer.llm.configured else 'off'})")
+    seed_studies(service, {"doctor": doctor.id}, studies, pause_s=20 if service.writer.llm.configured else 0)
+    print(f"Done. Sign in as {doctor.email} (password {PASSWORD}); the cases are at the top of the worklist.")
 
 
 def main() -> None:
@@ -333,12 +404,19 @@ def main() -> None:
         "--reset", action="store_true",
         help="first delete the local SQLite database and uploads (stop the API server before)",
     )
+    parser.add_argument(
+        "--samples", action="store_true",
+        help="only add the six sample cases (frontend/public/samples/cases.json) to an existing database",
+    )
     args = parser.parse_args()
     logging.getLogger("httpx").setLevel(logging.WARNING)  # one line per LLM request otherwise
     settings = get_settings()
     if args.reset:
         reset(settings)
     run_migrations()
+    if args.samples:
+        add_sample_cases(settings)
+        return
 
     with Session(get_engine()) as session:
         emails = [a.email for a in ACCOUNTS.values()]
@@ -346,7 +424,7 @@ def main() -> None:
             print("The demo data is already present (the demo accounts exist).")
             print("Use --reset to start over (local SQLite database only).")
             return
-    missing = sorted({s.sample for s in STUDIES if not (SAMPLES_DIR / s.sample).exists()})
+    missing = sorted({s.sample for s in STUDIES if s.sample and not s.optional and not (SAMPLES_DIR / s.sample).exists()})
     if missing:
         sys.exit(f"Missing sample images ({', '.join(missing)}): run scripts/download_samples.py first.")
 
@@ -356,7 +434,7 @@ def main() -> None:
         user_ids = create_accounts(session)
     print(f"Analyzing {len(STUDIES)} studies (AI reports: {'on' if service.writer.llm.configured else 'off'})")
     case_ids, patient_ids = seed_studies(service, user_ids)
-    seed_training(user_ids["resident"], case_ids)
+    seed_training(user_ids["doctor"], case_ids)
     summarize(settings, service, patient_ids["follow_up"])
 
 

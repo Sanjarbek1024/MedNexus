@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Info, X, type LucideIcon } from "lucide-react";
+import { Info, Stethoscope, X, type LucideIcon } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 
 import { useI18n } from "../i18n";
@@ -10,7 +10,7 @@ export function Skeleton({ className = "" }: { className?: string }) {
   return (
     <div
       aria-hidden
-      className={`animate-shimmer rounded-xl bg-[linear-gradient(90deg,#f1f5f9,#e2e8f0,#f1f5f9)] bg-[length:200%_100%] ${className}`}
+      className={`animate-shimmer rounded-xl bg-[linear-gradient(90deg,var(--color-slate-100),var(--color-slate-200),var(--color-slate-100))] bg-[length:200%_100%] ${className}`}
     />
   );
 }
@@ -24,12 +24,13 @@ export function EmptyState({ icon: Icon, title, text, action }: {
   return (
     <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
       <div className="relative">
-        <div className="absolute inset-0 scale-150 rounded-full bg-emerald-100/60 blur-xl" />
-        <div className="relative flex size-14 items-center justify-center rounded-2xl bg-white text-emerald-500 shadow-soft ring-1 ring-emerald-100">
-          <Icon className="size-7" />
+        <div className="absolute -inset-4 rounded-full bg-[radial-gradient(closest-side,var(--color-glow),transparent)] opacity-60" />
+        <div className="grid-lines absolute -inset-6 [mask-image:radial-gradient(closest-side,black,transparent)]" />
+        <div className="relative flex size-14 items-center justify-center rounded-2xl border border-line bg-surface text-emerald-600 shadow-soft">
+          <Icon className="size-6" />
         </div>
       </div>
-      <div className="font-bold text-ink">{title}</div>
+      <div className="mt-2 font-semibold text-ink">{title}</div>
       {text && <p className="max-w-sm text-sm text-slate-500">{text}</p>}
       {action}
     </div>
@@ -71,8 +72,12 @@ export function PageHeader({ eyebrow, title, subtitle, actions }: {
   return (
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div>
-        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
-        <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">{title}</h1>
+        {eyebrow && (
+          <div className="eyebrow flex items-center gap-2">
+            <span className="size-1.5 rounded-full bg-brand shadow-[0_0_8px_var(--color-glow)]" /> {eyebrow}
+          </div>
+        )}
+        <h1 className="mt-2 text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[32px]">{title}</h1>
         {subtitle && <p className="mt-1 max-w-2xl text-slate-500">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -93,17 +98,20 @@ export function StatCard({ icon: Icon, label, value, hint, tone = "text-ink", de
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
-      className="card p-5"
+      className="card group relative overflow-hidden p-5 transition hover:border-slate-300"
     >
       <div className="flex items-start justify-between gap-2">
-        <div className="eyebrow">{label}</div>
-        {hint ? (
+        <div className="flex items-center gap-2.5">
+          <span className="flex size-8 items-center justify-center rounded-lg border border-line bg-raised text-slate-500 transition group-hover:text-emerald-600">
+            <Icon className="size-4" />
+          </span>
+          <div className="text-[13px] leading-tight font-medium text-slate-500">{label}</div>
+        </div>
+        {hint && (
           <span title={hint} aria-label={hint} className="text-slate-300 hover:text-slate-500"><Info className="size-4" /></span>
-        ) : (
-          <Icon className="size-4 shrink-0 text-slate-300" />
         )}
       </div>
-      <div className={`mt-2 text-3xl font-extrabold tabular-nums ${tone}`}>{value}</div>
+      <div className={`mt-4 font-mono text-[28px] leading-none font-semibold tracking-tight whitespace-nowrap tabular-nums ${tone}`}>{value}</div>
     </motion.div>
   );
 }
@@ -115,7 +123,7 @@ export function Segmented<T extends string>({ value, options, onChange, label }:
   label: string;
 }) {
   return (
-    <div role="tablist" aria-label={label} className="flex flex-wrap gap-1 rounded-2xl bg-white/70 p-1 shadow-soft ring-1 ring-slate-200/60">
+    <div role="tablist" aria-label={label} className="flex flex-wrap gap-1 rounded-xl border border-line bg-raised p-1">
       {options.map((option) => (
         <button
           key={option.id}
@@ -123,16 +131,16 @@ export function Segmented<T extends string>({ value, options, onChange, label }:
           role="tab"
           aria-selected={value === option.id}
           onClick={() => onChange(option.id)}
-          className={`relative rounded-xl px-3 py-1.5 text-sm font-semibold transition ${
-            value === option.id ? "text-emerald-800" : "text-slate-500 hover:text-slate-800"
+          className={`relative rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+            value === option.id ? "text-ink" : "text-slate-500 hover:text-ink"
           }`}
         >
           {value === option.id && (
-            <motion.span layoutId={`seg-${label}`} className="absolute inset-0 rounded-xl bg-emerald-50 ring-1 ring-emerald-200" />
+            <motion.span layoutId={`seg-${label}`} className="absolute inset-0 rounded-lg border border-line bg-surface shadow-soft" />
           )}
           <span className="relative">
             {option.label}
-            {option.count !== undefined && <span className="ml-1.5 text-xs text-slate-400">{option.count}</span>}
+            {option.count !== undefined && <span className="ml-1.5 font-mono text-[11px] text-slate-400">{option.count}</span>}
           </span>
         </button>
       ))}
@@ -175,11 +183,11 @@ export function Modal({ open, onClose, title, subtitle, children, wide = false }
             exit={{ opacity: 0, y: 24 }}
             transition={{ type: "spring", bounce: 0.2, duration: 0.4 }}
             onClick={(event) => event.stopPropagation()}
-            className={`max-h-[90vh] w-full overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl ${wide ? "max-w-3xl" : "max-w-lg"}`}
+            className={`max-h-[90vh] w-full overflow-y-auto rounded-3xl border border-line bg-surface p-6 shadow-2xl shadow-black/20 ${wide ? "max-w-3xl" : "max-w-lg"}`}
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-lg font-bold text-ink">{title}</h2>
+                <h2 className="text-lg font-semibold tracking-tight text-ink">{title}</h2>
                 {subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}
               </div>
               <button type="button" onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100" aria-label={t("common.close")}>
@@ -221,12 +229,23 @@ export function Drawer({ open, onClose, children, label, width = "max-w-xl" }: {
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", bounce: 0.08, duration: 0.45 }}
-            className={`absolute inset-y-0 right-0 flex w-full ${width} flex-col border-l border-white/80 bg-canvas/95 shadow-2xl backdrop-blur-xl`}
+            className={`absolute inset-y-0 right-0 flex w-full ${width} flex-col border-l border-line bg-canvas/95 shadow-2xl backdrop-blur-xl`}
           >
             {children}
           </motion.aside>
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+/** Case thumbnail: the image, or a clinical tile for a case built from the intake alone. */
+export function CaseThumb({ thumbnail }: { thumbnail: string | null }) {
+  return thumbnail ? (
+    <img src={thumbnail} alt="" className="size-11 shrink-0 rounded-xl bg-night object-cover" />
+  ) : (
+    <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-line bg-raised text-emerald-600">
+      <Stethoscope className="size-5" />
+    </div>
   );
 }

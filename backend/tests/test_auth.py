@@ -12,7 +12,7 @@ from tests.conftest import PASSWORD, sign_in, upload
 
 def register(client: TestClient, **overrides) -> tuple[str, object]:
     email = f"new-{secrets.token_hex(4)}@example.org"
-    body = {"email": email, "full_name": "Dr. New", "password": PASSWORD, "role": "resident"} | overrides
+    body = {"email": email, "full_name": "New Person", "password": PASSWORD} | overrides
     return email, client.post("/api/auth/register", json=body)
 
 
@@ -20,7 +20,7 @@ def test_register_signs_in_with_secure_cookies(app_client: TestClient) -> None:
     client = TestClient(app)
     _, response = register(client)
     assert response.status_code == 201
-    assert response.json()["role"] == "resident"
+    assert response.json()["role"] == "doctor"  # MedNexus is for physicians only
     cookies = response.headers.get_list("set-cookie")
     access = next(c for c in cookies if c.startswith(ACCESS_COOKIE))
     assert "HttpOnly" in access and "SameSite=strict" in access and "Path=/api" in access
@@ -40,10 +40,16 @@ def test_passwords_are_hashed_with_argon2(app_client: TestClient) -> None:
     assert user.password_hash.startswith("$argon2id$") and PASSWORD not in user.password_hash
 
 
-def test_weak_password_and_admin_self_signup_are_refused(app_client: TestClient) -> None:
+def test_doctors_can_sign_up(app_client: TestClient) -> None:
+    _, response = register(TestClient(app), role="doctor")
+    assert response.status_code == 201 and response.json()["role"] == "doctor"
+
+
+def test_weak_password_and_unknown_roles_are_refused(app_client: TestClient) -> None:
     assert register(TestClient(app), password="short1")[1].status_code == 422
     assert register(TestClient(app), password="onlyletterslong")[1].status_code == 422
-    assert register(TestClient(app), role="admin")[1].status_code == 422
+    for role in ("admin", "radiologist", "resident", "user"):
+        assert register(TestClient(app), role=role)[1].status_code == 422
 
 
 def test_duplicate_email_is_refused(app_client: TestClient) -> None:
@@ -85,7 +91,12 @@ def test_refresh_rotates_and_logout_revokes(app_client: TestClient) -> None:
     stale_refresh = client.cookies.get("mnx_refresh")
     assert client.post("/api/auth/logout").status_code == 204
     replay = TestClient(app, cookies={"mnx_refresh": stale_refresh, CSRF_COOKIE: "t"}, headers={"x-csrf-token": "t"})
-    assert replay.post("/api/auth/refresh").status_code == 401
+    refused = replay.post("/api/auth/refresh")
+    assert refused.status_code == 401
+    # The dead session's cookies are cleared, so the browser stops retrying it on every load.
+    cleared = refused.headers.get_list("set-cookie")
+    assert any(c.startswith(f"{CSRF_COOKIE}=") and "Max-Age=0" in c for c in cleared)
+    assert any(c.startswith("mnx_refresh=") and "Max-Age=0" in c for c in cleared)
 
 
 def test_change_password_requires_the_current_one(app_client: TestClient) -> None:
@@ -113,30 +124,24 @@ def test_state_changing_requests_need_the_csrf_header(client: TestClient) -> Non
 
 
 def test_users_only_see_their_own_cases(make_user: Callable[[str], TestClient], sample: Callable[[str], Path]) -> None:
-    owner, stranger, admin = make_user(Role.RADIOLOGIST), make_user(Role.RADIOLOGIST), make_user(Role.ADMIN)
+    owner, stranger, person = make_user(Role.DOCTOR), make_user(Role.DOCTOR), make_user(Role.DOCTOR)
     case_id = upload(owner, sample("chest_pa_normal.jpg")).json()["case_id"]
 
-    assert stranger.get(f"/api/cases/{case_id}").status_code == 404
-    assert case_id not in [c["id"] for c in stranger.get("/api/cases").json()["items"]]
+    for other in (stranger, person):
+        assert other.get(f"/api/cases/{case_id}").status_code == 404
+        assert case_id not in [c["id"] for c in other.get("/api/cases").json()["items"]]
     assert stranger.post(f"/api/cases/{case_id}/review", json={"action": "confirm"}).status_code == 404
-    assert admin.get(f"/api/cases/{case_id}").status_code == 200
-    assert case_id in [c["id"] for c in admin.get("/api/cases").json()["items"]]
+    assert case_id in [c["id"] for c in owner.get("/api/cases").json()["items"]]
 
 
-def test_residents_cannot_sign_off(make_user: Callable[[str], TestClient], sample: Callable[[str], Path]) -> None:
-    resident = make_user(Role.RESIDENT)
-    case_id = upload(resident, sample("chest_pa_pneumonia.jpg")).json()["case_id"]
-    draft = resident.put(f"/api/cases/{case_id}/report/draft", json={"impression": "Right upper lobe consolidation."})
-    assert draft.status_code == 200 and draft.json()["physician_report"]["status"] == "draft"
-    assert resident.post(f"/api/cases/{case_id}/review", json={"action": "confirm"}).status_code == 403
+def test_no_admin_api(make_user: Callable[[str], TestClient]) -> None:
+    doctor = make_user(Role.DOCTOR)
+    for path in ("/api/stats/safety", "/api/stats/dashboard", "/api/training/stats", "/api/patients"):
+        assert doctor.get(path).status_code == 200, path
+    assert doctor.get("/api/users").status_code == 404
 
 
-def test_admin_endpoints_need_the_admin_role(make_user: Callable[[str], TestClient]) -> None:
-    radiologist, admin = make_user(Role.RADIOLOGIST), make_user(Role.ADMIN)
-    assert radiologist.get("/api/users").status_code == 403
-    assert radiologist.get("/api/stats/safety").status_code == 403
-    assert any(u["role"] == "admin" for u in admin.get("/api/users").json())
-    target = radiologist.get("/api/auth/me").json()["id"]
-    updated = admin.patch(f"/api/users/{target}", json={"role": "resident"})
-    assert updated.status_code == 200 and updated.json()["role"] == "resident"
-    assert radiologist.get("/api/auth/me").json()["role"] == "resident"  # effective immediately
+def test_invalid_patient_context_is_refused(make_user: Callable[[str], TestClient], sample: Callable[[str], Path]) -> None:
+    person = make_user(Role.DOCTOR)
+    assert upload(person, sample("chest_pa_normal.jpg"), age="130").status_code == 422
+    assert upload(person, sample("chest_pa_normal.jpg"), sex="other").status_code == 422

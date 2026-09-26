@@ -13,6 +13,9 @@ __pycache__/
 
 # Runtime data (SQLite database, stored cases)
 backend/data/
+# Model weights (~1 GB, files up to 343 MB) stay out of git; see backend/weights/README.md
+backend/weights/*
+!backend/weights/README.md
 
 # Frontend
 node_modules/
