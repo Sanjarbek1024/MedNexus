@@ -18,7 +18,7 @@ Medical-image AI for two audiences: people get a calm, plain-language explanatio
 
 **For doctors (role *Doctor*, monthly subscription, free during the pilot)**
 - **Smart worklist.** Studies are ordered by AI urgency (for example a high-confidence pneumothorax, effusion or fracture comes first), with the time in queue always visible. Filters, search and batch upload run in the background.
-- **Analysis.** DICOM, PNG and JPEG. Chest X-ray uses a DenseNet-121 + ResNet-50 ensemble with per-model agreement. Extremity X-ray has a fracture detector with bounding boxes. Brain MRI has a tumor classifier. CT studies get the vision-language assessment only, marked experimental. Pipeline progress is shown live.
+- **Analysis.** DICOM, PNG and JPEG. Chest X-ray uses a DenseNet-121 + ResNet-50 ensemble with per-model agreement. Extremity X-ray has a fracture detector with bounding boxes. Brain MRI has a tumor classifier. Other study types (CT, MRI outside the head) are listed as *Coming soon* until a validated model covers them. Pipeline progress is shown live.
 - **AI differential.** The same image + symptoms assessment in clinical language, next to the model findings.
 - **Explainability.** Grad-CAM heatmaps, lung and heart contours, an estimated cardiothoracic ratio, and detection boxes. The viewer has zoom/pan, side-by-side view and keyboard shortcuts.
 - **Prior comparison.** Two studies of one patient in synced viewers, a findings delta (improved / stable / worsened) and an LLM-drafted interval summary.
@@ -83,7 +83,8 @@ cd frontend && npm run test:e2e                             # Playwright: sign i
 frontend/   React · Vite · TypeScript · Tailwind · framer-motion · i18n (uz/en/ru)
 backend/
   analyzers.yaml     registry: analyzers per modality / region / view, triage rules
-  app/analyzers/     plugins: quality & DICOM gates, chest_xray/ (OOD, anatomy, ensemble), extremity_xray/ (region gate, fracture)
+  app/analyzers/     plugins: quality & DICOM gates, chest_xray/ (OOD, anatomy, ensemble), extremity_xray/ (region gate, fracture), brain_mri/ (tumor classifier)
+  app/services/assessment.py   image + symptoms → differential with the vision-language model (estimates ≤ 90 %)
   app/services/      pipeline, analysis & review, reporting & chat (LLM), triage, compare, training, stats, uploads, background queue
   app/db/            SQLModel tables, Alembic migrations (PostgreSQL or SQLite), hash-chained audit log
   app/api/           FastAPI routes: auth, users, analyze, cases (worklist, review, report, chat), compare, training, stats
