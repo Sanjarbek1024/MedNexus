@@ -131,6 +131,10 @@ CONFIRM, EDIT, REJECT = ReviewAction.CONFIRM, ReviewAction.EDIT, ReviewAction.RE
 STUDIES = [
     Study("prior", "chest_pa_normal.jpg", 183 * DAY + 3 * HOUR, sign_off=SignOff(
         CONFIRM, 40 * MINUTE, "Ko‘krak qafasi a’zolarida o‘tkir patologik o‘zgarishlar aniqlanmadi.")),
+    # Same DICOM PatientID as samples/chest_pa_pneumonia.dcm: uploading that file in the demo
+    # links it to this patient, so Compare shows a six-month interval.
+    Study("dicom", "chest_pa_normal.dcm", 180 * DAY, sign_off=SignOff(
+        CONFIRM, 25 * MINUTE, "Ko‘krak qafasi a’zolarida patologik o‘zgarishlar aniqlanmadi.")),
     Study("greenstick", "wrist_greenstick_fracture.jpg", 6 * DAY + 2 * HOUR, region="extremity", view="AP",
           sign_off=SignOff(CONFIRM, 220 * MINUTE, "Bilak suyagi distal qismining to‘liqsiz (yashil novda tipidagi) sinishi.")),
     Study("buckle", "wrist_buckle_fracture.jpg", 5 * DAY + 4 * HOUR, region="extremity", sign_off=SignOff(
@@ -155,7 +159,6 @@ STUDIES = [
     Study("second_normal", "chest_pa_normal_2.png", DAY + HOUR),
     Study("normal", "chest_pa_normal_2.png", 200 * MINUTE, sign_off=SignOff(
         CONFIRM, 35 * MINUTE, "Ko‘krak qafasi rentgenogrammasida patologik o‘zgarishlar aniqlanmadi.")),
-    Study("dicom", "chest_pa_normal.dcm", 130 * MINUTE),
     Study("salter_harris", "wrist_salter_harris_fracture.jpg", 85 * MINUTE, region="extremity"),
     Study("follow_up", "chest_pa_pneumonia.jpg", 45 * MINUTE, patient_of="prior"),
     Study("draft", "chest_nih_00000001_000.png", 30 * MINUTE, draft=ReportSections(
