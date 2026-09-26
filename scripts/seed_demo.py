@@ -78,7 +78,6 @@ class Account:
 
 ACCOUNTS = {
     "doctor": Account("doctor@mednexus.uz", "Dr. Dilnoza Karimova", Role.DOCTOR),
-    "user": Account("user@mednexus.uz", "Aziz Karimov", Role.USER),
 }
 
 
@@ -108,7 +107,8 @@ class Study:
     patient_of: str | None = None  # key of an earlier study of the same patient
     sign_off: SignOff | None = None
     draft: ReportSections | None = None  # the owner's unsigned report
-    symptoms: str | None = None  # what the person reports with the image
+    symptoms: str | None = None  # history of present illness
+    clinical: dict | None = None  # structured intake (ClinicalData)
     age: int | None = None
     sex: str | None = None
     optional: bool = False  # skipped when its sample image has not been downloaded
@@ -166,16 +166,38 @@ STUDIES = [
         impression="Kardiomegaliyaga shubha. Radiolog tasdig‘i kerak.",
         recommendations="Oldingi tasvirlar bilan solishtirish.",
     )),
-    # The person's own uploads, with the symptoms they reported (patient-facing answers).
-    Study("user_checkup", "chest_pa_normal.jpg", 3 * DAY, owner="user", age=29, sex="female",
-          symptoms="Ishga kirish uchun profilaktik flyuorografiya. Shikoyatim yo‘q."),
-    Study("user_wrist", "wrist_buckle_fracture.jpg", 2 * DAY, region="extremity", owner="user", age=11, sex="male",
-          symptoms="Velosipeddan yiqilib tushdi, bilagi shishgan va qimirlatganda og‘riyapti."),
-    Study("user_brain", "brain_mri_glioma.jpg", 26 * HOUR, modality="mri", region="head", view="Axial",
-          owner="user", age=52, sex="female", optional=True,
-          symptoms="2 oydan beri bosh og‘rig‘i, ertalab kuchayadi, ba’zan ko‘ngil aynishi va ko‘rish xiralashishi."),
-    Study("user_pneumonia", "chest_pa_pneumonia.jpg", 50 * MINUTE, owner="user", age=46, sex="male",
-          symptoms="3 kundan beri yo‘tal, harorat 38,5, o‘ng tomonda nafas olganda ko‘krak og‘rig‘i."),
+    # Clinical-first cases: the structured intake drives the differential; imaging is optional.
+    Study("wrist_injury", "wrist_buckle_fracture.jpg", 2 * DAY, region="extremity", age=11, sex="male",
+          symptoms="Velosipeddan yiqilib tushdi, bilagi shishgan va qimirlatganda og‘riyapti.",
+          clinical={"chief_complaint": "Bilak og‘rig‘i va shishi, jarohatdan keyin", "onset": "sudden", "duration": "3 soat",
+                    "severity": "moderate", "symptoms": ["pain", "swelling"],
+                    "vitals": {"temperature": 36.7, "heart_rate": 96, "resp_rate": 18, "spo2": 99}}),
+    Study("headache_mri", "brain_mri_glioma.jpg", 26 * HOUR, modality="mri", region="head", view="Axial",
+          age=52, sex="female", optional=True,
+          symptoms="2 oydan beri bosh og‘rig‘i, ertalab kuchayadi, ba’zan ko‘ngil aynishi va ko‘rish xiralashishi.",
+          clinical={"chief_complaint": "Kuchayib borayotgan bosh og‘rig‘i", "onset": "gradual", "duration": "2 oy",
+                    "severity": "moderate", "symptoms": ["headache", "nausea", "vision_change"],
+                    "vitals": {"temperature": 36.6, "heart_rate": 72, "resp_rate": 14, "systolic": 138, "diastolic": 86, "spo2": 98},
+                    "exam": "Fundoskopiyada disk shishi shubhasi."}),
+    Study("cough_fever", "chest_pa_pneumonia.jpg", 50 * MINUTE, age=46, sex="male",
+          symptoms="3 kundan beri yo‘tal, harorat 38,5, o‘ng tomonda nafas olganda ko‘krak og‘rig‘i.",
+          clinical={"chief_complaint": "Yo‘tal va isitma", "onset": "sudden", "duration": "3 kun", "severity": "moderate",
+                    "symptoms": ["cough", "fever", "chest_pain", "dyspnea"], "smoking": "current",
+                    "vitals": {"temperature": 38.6, "heart_rate": 108, "resp_rate": 24, "systolic": 118, "diastolic": 74, "spo2": 93},
+                    "exam": "O‘ng pastki bo‘lakda krepitatsiya, bronxial nafas.", "labs": "Leykotsitlar 15.2, CRP 96 mg/L"}),
+    # No image: the differential comes from the intake alone.
+    Study("chest_pain", "", 35 * MINUTE, modality="clinical", age=61, sex="male",
+          symptoms="1 soat oldin boshlangan ko‘krak ortidagi siquvchi og‘riq, chap qo‘lga tarqaladi, sovuq ter.",
+          clinical={"chief_complaint": "Ko‘krak ortidagi siquvchi og‘riq", "onset": "sudden", "duration": "1 soat",
+                    "severity": "severe", "symptoms": ["chest_pain", "sweating", "dyspnea"],
+                    "history": ["hypertension", "diabetes"], "smoking": "current",
+                    "vitals": {"temperature": 36.8, "heart_rate": 112, "resp_rate": 22, "systolic": 96, "diastolic": 60, "spo2": 94},
+                    "medications": "Metformin, amlodipin"}),
+    Study("tb_suspect", "", 20 * MINUTE, modality="clinical", age=34, sex="female",
+          symptoms="5 haftadan beri yo‘tal, kechasi terlash, 6 kg ozgan, ba’zan balg‘amda qon.",
+          clinical={"chief_complaint": "Uzoq davom etayotgan yo‘tal", "onset": "gradual", "duration": "5 hafta",
+                    "severity": "moderate", "symptoms": ["cough", "night_sweats", "weight_loss", "hemoptysis", "fever"],
+                    "vitals": {"temperature": 37.8, "heart_rate": 94, "resp_rate": 18, "systolic": 112, "diastolic": 70, "spo2": 97}}),
 ]
 
 ATTEMPTS = [
@@ -209,7 +231,7 @@ def build_service(settings: Settings) -> AnalysisService:
     """The services the API builds at startup (see app.main.lifespan)."""
     registry = AnalyzerRegistry.from_yaml(settings.registry_path)
     registry.load(select_device(settings.device))
-    llm = LLM(settings.groq_api_key, settings.groq_model, settings.groq_timeout_s)
+    llm = LLM(settings.groq_api_key, settings.groq_model, settings.groq_timeout_s, max_retries=3)
     vision = LLM(settings.groq_api_key, settings.groq_vision_model, settings.groq_vision_timeout_s, max_retries=3)
     return AnalysisService(AnalysisPipeline(registry), ReportWriter(llm), settings, vision)
 
@@ -268,20 +290,24 @@ def seed_studies(service: AnalysisService, user_ids: dict[str, int]) -> tuple[di
     case_ids: dict[str, int] = {}
     patient_ids: dict[str, int] = {}
     for number, study in enumerate(STUDIES, start=1):
-        if not (SAMPLES_DIR / study.sample).exists():
+        if study.sample and not (SAMPLES_DIR / study.sample).exists():
             print(f"  [{number:2}/{len(STUDIES)}] {study.sample:34} skipped: sample not downloaded")
             continue
         created = NOW - study.ago
-        upload = uploads.sanitize((SAMPLES_DIR / study.sample).read_bytes())
-        image = decode_upload(upload.data, upload.sha256)
         with Session(engine) as session:
             owner = session.get(User, user_ids[study.owner])
-            selection = Selection(modality=study.modality, region=study.region, view=study.view, language=owner.language)
-            patient = resolve_patient(session, owner, upload, patient_ids.get(study.patient_of))
-            context = PatientContext(study.symptoms, study.age, study.sex)
-            case = service.create_case(
-                session, owner, upload, image, selection, patient, created - ACQUISITION_LEAD, context
-            )
+            context = PatientContext(study.symptoms, study.age, study.sex, clinical=study.clinical)
+            if not study.sample:
+                patient = resolve_patient(session, owner, None, patient_ids.get(study.patient_of))
+                case = service.create_clinical_case(session, owner, patient, owner.language, context)
+            else:
+                upload = uploads.sanitize((SAMPLES_DIR / study.sample).read_bytes())
+                image = decode_upload(upload.data, upload.sha256)
+                selection = Selection(modality=study.modality, region=study.region, view=study.view, language=owner.language)
+                patient = resolve_patient(session, owner, upload, patient_ids.get(study.patient_of))
+                case = service.create_case(
+                    session, owner, upload, image, selection, patient, created - ACQUISITION_LEAD, context
+                )
             case_ids[study.key], patient_ids[study.key] = case.id, patient.id
 
         service.run(case_ids[study.key], lambda stage: None)
@@ -301,7 +327,7 @@ def seed_studies(service: AnalysisService, user_ids: dict[str, int]) -> tuple[di
                 outcome += " - NOT reviewed: the planned review needs an analyzed image"
             elif reviewed:
                 outcome += f", review: {study.sign_off.action}"
-            print(f"  [{number:2}/{len(STUDIES)}] {study.sample:34} {study.region:9} -> {outcome}")
+            print(f"  [{number:2}/{len(STUDIES)}] {study.sample or '(intake only)':34} {study.region:9} -> {outcome}")
     return case_ids, patient_ids
 
 
@@ -371,7 +397,7 @@ def main() -> None:
             print("The demo data is already present (the demo accounts exist).")
             print("Use --reset to start over (local SQLite database only).")
             return
-    missing = sorted({s.sample for s in STUDIES if not s.optional and not (SAMPLES_DIR / s.sample).exists()})
+    missing = sorted({s.sample for s in STUDIES if s.sample and not s.optional and not (SAMPLES_DIR / s.sample).exists()})
     if missing:
         sys.exit(f"Missing sample images ({', '.join(missing)}): run scripts/download_samples.py first.")
 

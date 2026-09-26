@@ -106,7 +106,12 @@ export function useStudyForm({ loadPatients = true }: { loadPatients?: boolean }
 
 export type StudyForm = ReturnType<typeof useStudyForm>;
 
-export function StudyFields({ form, showDate = true }: { form: StudyForm; showDate?: boolean }) {
+export function StudyFields({ form, showDate = true, showPatient = true, showLanguage = true }: {
+  form: StudyForm;
+  showDate?: boolean;
+  showPatient?: boolean;
+  showLanguage?: boolean;
+}) {
   const { t, taxonomy, analyzer } = useI18n();
   const { capabilities, modality, region, state, update } = form;
 
@@ -121,7 +126,7 @@ export function StudyFields({ form, showDate = true }: { form: StudyForm; showDa
       <StudySelect label={t("analyze.modality")} value={state.modality} options={localized(capabilities.modalities)} onChange={form.chooseModality} />
       <StudySelect label={t("analyze.region")} value={state.region} options={localized(modality.regions)} onChange={form.chooseRegion} />
       <StudySelect label={t("analyze.view")} value={state.view} options={localized(region.views)} onChange={(view) => update({ view })} />
-      <div className={`grid gap-3 ${showDate ? "sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2" : ""}`}>
+      {showPatient && <div className={`grid gap-3 ${showDate ? "sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2" : ""}`}>
         <label className="block">
           <span className="eyebrow pl-1">{t("analyze.patient")}</span>
           <select
@@ -141,9 +146,9 @@ export function StudyFields({ form, showDate = true }: { form: StudyForm; showDa
             <input type="date" className="field mt-1.5" value={state.acquiredOn} max={new Date().toISOString().slice(0, 10)} onChange={(e) => update({ acquiredOn: e.target.value })} />
           </label>
         )}
-      </div>
-      <p className="-mt-2 pl-1 text-xs text-slate-400">{t("analyze.patientHint")}</p>
-      <div>
+      </div>}
+      {showPatient && <p className="-mt-2 pl-1 text-xs text-slate-400">{t("analyze.patientHint")}</p>}
+      {showLanguage && <div>
         <div className="eyebrow mb-1.5 pl-1">{t("analyze.reportLanguage")}</div>
         <div className="grid grid-cols-3 gap-1 rounded-2xl bg-slate-100/80 p-1">
           {capabilities.languages.map((lang) => (
@@ -154,12 +159,12 @@ export function StudyFields({ form, showDate = true }: { form: StudyForm; showDa
               aria-pressed={state.language === lang.id}
               className={`relative rounded-xl py-2 text-sm font-semibold transition ${state.language === lang.id ? "text-emerald-800" : "text-slate-500 hover:text-slate-700"}`}
             >
-              {state.language === lang.id && <motion.span layoutId="lang-pill" className="absolute inset-0 rounded-xl bg-white shadow-sm ring-1 ring-emerald-200" />}
+              {state.language === lang.id && <motion.span layoutId="lang-pill" className="absolute inset-0 rounded-xl bg-surface shadow-sm ring-1 ring-emerald-200" />}
               <span className="relative">{lang.label}</span>
             </button>
           ))}
         </div>
-      </div>
+      </div>}
       {form.view && form.view.analyzers.length > 0 && (
         <div className="rounded-2xl bg-emerald-50/60 p-4 ring-1 ring-emerald-100">
           <div className="eyebrow text-emerald-700/70">{t("analyze.pipeline")}</div>
@@ -241,14 +246,14 @@ export function StudyPresets({ form }: { form: StudyForm }) {
             disabled={!target}
             onClick={() => target && form.update({ ...target })}
             className={`relative flex items-start gap-3 rounded-2xl border p-3 pr-8 text-left transition disabled:cursor-not-allowed disabled:opacity-55 ${
-              active ? "border-emerald-400 bg-emerald-50/80 ring-4 ring-emerald-100" : "border-slate-200 bg-white hover:border-slate-300"
+              active ? "border-emerald-400 bg-emerald-50/80 ring-4 ring-emerald-100" : "border-slate-200 bg-surface hover:border-slate-300"
             }`}
           >
-            <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl transition ${active ? "bg-emerald-500 text-white shadow-glow" : "bg-slate-100 text-slate-500"}`}>
+            <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl transition ${active ? "bg-brand text-on-brand shadow-glow" : "bg-slate-100 text-slate-500"}`}>
               <Icon className="size-5" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-sm leading-snug font-bold text-ink">{t(`analyze.presets.${id}.title`)}</span>
+              <span className="block text-sm leading-snug font-semibold text-ink">{t(`analyze.presets.${id}.title`)}</span>
               <span className="mt-0.5 block text-xs text-slate-500">
                 {target ? t(`analyze.presets.${id}.text`) : t("analyze.presetUnavailable")}
               </span>

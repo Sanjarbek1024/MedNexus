@@ -15,23 +15,24 @@ function blind(task: TrainingCase): AnalysisResult {
     checks: [], findings: [], other_scores: [], not_assessed: [], thresholds: {}, structures: [], measurements: [],
     report: null, report_error: null, physician_report: null, suggested_report: null, versions: {}, timings_ms: {}, review: null, audit: [],
     symptoms: null, patient_age: null, patient_sex: null, assessment: null, assessment_error: null, hospitals: [],
+    has_image: true, clinical: null, rules: null,
   };
 }
 
 function ScoreRing({ score }: { score: number }) {
   const radius = 42;
   const circumference = 2 * Math.PI * radius;
-  const color = score >= 75 ? "#059669" : score >= 40 ? "#d97706" : "#e11d48";
+  const color = score >= 75 ? "stroke-emerald-500" : score >= 40 ? "stroke-amber-500" : "stroke-rose-500";
   return (
     <svg viewBox="0 0 100 100" className="size-28" aria-hidden>
-      <circle cx="50" cy="50" r={radius} fill="none" stroke="#e2e8f0" strokeWidth="8" />
+      <circle cx="50" cy="50" r={radius} fill="none" className="stroke-slate-100" strokeWidth="8" />
       <motion.circle
-        cx="50" cy="50" r={radius} fill="none" stroke={color} strokeWidth="8" strokeLinecap="round"
+        cx="50" cy="50" r={radius} fill="none" className={color} strokeWidth="8" strokeLinecap="round"
         strokeDasharray={circumference} initial={{ strokeDashoffset: circumference }}
         animate={{ strokeDashoffset: circumference * (1 - score / 100) }} transition={{ duration: 1.1, ease: "easeOut" }}
         transform="rotate(-90 50 50)"
       />
-      <text x="50" y="56" textAnchor="middle" className="fill-ink text-[22px] font-extrabold">{Math.round(score)}</text>
+      <text x="50" y="56" textAnchor="middle" className="fill-ink text-[22px] font-semibold">{Math.round(score)}</text>
     </svg>
   );
 }
@@ -117,7 +118,7 @@ export function TrainingPage() {
 
             {!reveal ? (
               <section className="card p-5">
-                <h2 className="flex items-center gap-2 font-bold text-ink"><Stethoscope className="size-5 text-emerald-600" /> {t("training.yourRead")}</h2>
+                <h2 className="flex items-center gap-2 font-semibold text-ink"><Stethoscope className="size-5 text-emerald-600" /> {t("training.yourRead")}</h2>
                 <p className="mt-1 text-sm text-slate-500">{t("training.selectFindings")}</p>
                 <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
                   {task.candidates.map((name) => (
@@ -127,10 +128,10 @@ export function TrainingPage() {
                       aria-pressed={selected.includes(name)}
                       onClick={() => toggle(name)}
                       className={`flex items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium ring-1 transition ${
-                        selected.includes(name) ? "bg-emerald-50 text-emerald-800 ring-emerald-300" : "bg-white text-slate-600 ring-slate-200 hover:ring-slate-300"
+                        selected.includes(name) ? "bg-emerald-50 text-emerald-800 ring-emerald-300" : "bg-surface text-slate-600 ring-slate-200 hover:ring-slate-300"
                       }`}
                     >
-                      <span className={`flex size-4 shrink-0 items-center justify-center rounded-md border ${selected.includes(name) ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300"}`}>
+                      <span className={`flex size-4 shrink-0 items-center justify-center rounded-md border ${selected.includes(name) ? "border-emerald-500 bg-brand text-on-brand" : "border-slate-300"}`}>
                         {selected.includes(name) && <Check className="size-3" />}
                       </span>
                       <span className="min-w-0 break-words">{finding(name)}</span>
@@ -200,7 +201,7 @@ export function TrainingPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
         <section className="space-y-4">
-          <h2 className="font-bold text-ink">{t("training.stats")}</h2>
+          <h2 className="font-semibold text-ink">{t("training.stats")}</h2>
           {!stats ? <Skeleton className="h-40" /> : (
             <>
               <div className="grid grid-cols-2 gap-4">
@@ -227,7 +228,7 @@ export function TrainingPage() {
 
         <section className="space-y-4">
           <div>
-            <h2 className="font-bold text-ink">{t("training.mistakesTitle")}</h2>
+            <h2 className="font-semibold text-ink">{t("training.mistakesTitle")}</h2>
             <p className="text-sm text-slate-500">{t("training.mistakesSubtitle")}</p>
           </div>
           {mistakes === null ? <Skeleton className="h-40" /> : mistakes.length === 0 ? (
@@ -236,7 +237,7 @@ export function TrainingPage() {
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2">
               {mistakes.slice(0, 6).map((m) => (
                 <motion.div key={m.case_id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="card flex gap-3 p-4">
-                  {m.thumbnail && <img src={m.thumbnail} alt="" className="size-16 shrink-0 rounded-xl bg-slate-900 object-cover" />}
+                  {m.thumbnail && <img src={m.thumbnail} alt="" className="size-16 shrink-0 rounded-xl bg-night object-cover" />}
                   <div className="min-w-0 space-y-1.5 text-xs">
                     {m.missed_by_ai.length > 0 && (
                       <div><span className="font-semibold text-violet-700">{t("training.missed")}:</span> {m.missed_by_ai.map(finding).join(", ")}</div>

@@ -25,8 +25,10 @@ def _json(nullable: bool = False) -> Column:
 
 
 class Role(StrEnum):
-    USER = "user"  # a person reading their own images (patient-facing answers)
-    DOCTOR = "doctor"  # a physician: worklist, review and sign-off (monthly subscription)
+    DOCTOR = "doctor"  # MedNexus is a physician tool: worklist, differential, review and sign-off
+
+# Cases without an image use this modality marker; imaging can be attached later.
+CLINICAL = "clinical"
 
 
 class CaseStatus(StrEnum):
@@ -98,6 +100,8 @@ class Case(SQLModel, table=True):
     symptoms: str | None = Field(default=None, max_length=2000)
     patient_age: int | None = None
     patient_sex: str | None = Field(default=None, max_length=10)
+    # Structured intake (ClinicalData): complaint, symptoms, vitals, history, exam, labs.
+    clinical: dict | None = Field(default=None, sa_column=_json(nullable=True))
     acquired_at: datetime = Field(default_factory=utcnow, sa_column=_timestamp(index=True))
     created_at: datetime = Field(default_factory=utcnow, sa_column=_timestamp(index=True))
     analyzed_at: datetime | None = Field(default=None, sa_column=_timestamp(nullable=True))

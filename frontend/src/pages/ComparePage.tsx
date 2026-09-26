@@ -44,7 +44,7 @@ export function ComparePage({ query }: { query: URLSearchParams }) {
     if (!patientId) return;
     api.cases({ patient_id: patientId, sort: "recent", limit: 50 }).then((body) => {
       const analyzed = body.items
-        .filter((c) => c.status === "ai_ready" || c.status === "reviewed")
+        .filter((c) => c.has_image !== false && (c.status === "ai_ready" || c.status === "reviewed"))
         .sort((a, b) => new Date(b.acquired_at).getTime() - new Date(a.acquired_at).getTime());
       setStudies(analyzed);
       if (analyzed.length >= 2 && (!priorId || !currentId)) {
@@ -124,7 +124,7 @@ export function ComparePage({ query }: { query: URLSearchParams }) {
             {([["prior", comparison.prior], ["current", comparison.current]] as const).map(([role, result]) => (
               <div key={role} className="space-y-2">
                 <div className="flex items-center justify-between px-1">
-                  <div className="text-sm font-bold text-ink">{t(`compare.${role}`)} · {caseNumber(result.case_id)} <span className="font-normal text-slate-500">· {date(result.acquired_at ?? result.created_at, false)}</span></div>
+                  <div className="text-sm font-semibold text-ink">{t(`compare.${role}`)} · {caseNumber(result.case_id)} <span className="font-normal text-slate-500">· {date(result.acquired_at ?? result.created_at, false)}</span></div>
                   <StatusChip status={result.status} />
                 </div>
                 <ImageViewer
@@ -140,13 +140,13 @@ export function ComparePage({ query }: { query: URLSearchParams }) {
           </div>
 
           <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card p-5">
-            <div className="flex items-center gap-2"><Sparkles className="size-5 text-emerald-600" /><h2 className="font-bold text-ink">{t("compare.summaryTitle")}</h2></div>
+            <div className="flex items-center gap-2"><Sparkles className="size-5 text-emerald-600" /><h2 className="font-semibold text-ink">{t("compare.summaryTitle")}</h2></div>
             <p className="mt-3 leading-relaxed text-slate-700">{comparison.summary ?? t("compare.summaryUnavailable")}</p>
           </motion.section>
 
           <section className="card overflow-hidden">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-4">
-              <h2 className="flex items-center gap-2 font-bold text-ink"><Columns2 className="size-5 text-emerald-600" /> {t("compare.deltaTitle")}</h2>
+              <h2 className="flex items-center gap-2 font-semibold text-ink"><Columns2 className="size-5 text-emerald-600" /> {t("compare.deltaTitle")}</h2>
               <Segmented value={scope} onChange={setScope} label="delta-scope" options={[{ id: "changed", label: t("compare.onlyChanged") }, { id: "all", label: t("compare.showAll") }]} />
             </div>
             <div className="overflow-x-auto">

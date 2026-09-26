@@ -1,4 +1,4 @@
-import { CircleAlert, FileSignature, LoaderCircle, Plus, Save, ThumbsDown, ThumbsUp, X } from "lucide-react";
+import { CircleAlert, FileSignature, LoaderCircle, Plus, Save, ShieldAlert, Siren, ThumbsDown, ThumbsUp, X, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 
 import { useI18n } from "../i18n";
@@ -9,6 +9,7 @@ import { useToast } from "../lib/toast";
 import { Drawer } from "./ui";
 
 type Decision = "agree" | "disagree";
+interface Warning { id: string; icon: LucideIcon; text: string }
 
 function initialSections(result: AnalysisResult): ReportSections {
   const source = result.physician_report ?? result.suggested_report;
@@ -45,6 +46,27 @@ function EditorBody({ result, action, onClose, onUpdate }: EditorProps) {
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState<"draft" | "sign" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Which set of warnings the physician acknowledged; a new warning needs a fresh acknowledgement.
+  const [acknowledgedFor, setAcknowledgedFor] = useState<string | null>(null);
+
+  // Pre-sign safety check: never blocks, but asks for a deliberate decision on what the AI flagged.
+  const warnings: Warning[] = [
+    ...result.findings
+      .filter((f) => (f.level === "high" || f.level === "moderate") && decisions[f.name] === "disagree")
+      .map((f) => ({
+        id: `disagree:${f.name}`,
+        icon: ThumbsDown,
+        text: t("review.warnDisagree", { name: finding(f.name), level: t(`review.confidence.${f.level}`) }),
+      })),
+    ...(result.assessment?.differential ?? [])
+      .filter((d) => d.cannot_miss)
+      .map((d) => ({ id: `rule-out:${d.name}`, icon: ShieldAlert, text: t("review.warnCannotMiss", { name: finding(d.name) }) })),
+    ...(result.assessment?.red_flags ?? [])
+      .filter((flag) => flag.trim())
+      .map((flag, i) => ({ id: `red-flag:${i}`, icon: Siren, text: t("review.warnRedFlag", { text: flag }) })),
+  ];
+  const warningKey = warnings.map((w) => w.id).join("|");
+  const acknowledged = warnings.length === 0 || acknowledgedFor === warningKey;
 
   const candidates = [...result.other_scores.map((s) => s.name), ...result.not_assessed].filter((name) => !added.includes(name));
   const signer = canSign(user?.role);
@@ -90,7 +112,7 @@ function EditorBody({ result, action, onClose, onUpdate }: EditorProps) {
       <div className="flex items-start justify-between gap-4 border-b border-slate-200/70 px-6 py-5">
         <div>
           <div className="eyebrow">{t("review.decision")}</div>
-          <h2 className="mt-1 text-xl font-bold text-ink">{title}</h2>
+          <h2 className="mt-1 text-xl font-semibold text-ink">{title}</h2>
           <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
         </div>
         <button type="button" onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100" aria-label={t("common.close")}><X className="size-5" /></button>
@@ -102,7 +124,7 @@ function EditorBody({ result, action, onClose, onUpdate }: EditorProps) {
             <h3 className="eyebrow mb-2">{t("review.decisions")}</h3>
             <ul className="space-y-2">
               {result.findings.map((f) => (
-                <li key={f.name} className="flex items-center gap-3 rounded-2xl bg-white p-3 ring-1 ring-slate-200/70">
+                <li key={f.name} className="flex items-center gap-3 rounded-2xl bg-surface p-3 ring-1 ring-slate-200/70">
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold text-ink">{finding(f.name)}</div>
                     <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-500">
@@ -118,7 +140,7 @@ function EditorBody({ result, action, onClose, onUpdate }: EditorProps) {
                         aria-pressed={decisions[f.name] === d}
                         onClick={() => setDecisions({ ...decisions, [f.name]: d })}
                         className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
-                          decisions[f.name] === d ? (d === "agree" ? "bg-emerald-500 text-white" : "bg-rose-500 text-white") : "text-slate-500 hover:text-slate-700"
+                          decisions[f.name] === d ? (d === "agree" ? "bg-brand text-on-brand" : "bg-rose-500 text-white") : "text-slate-500 hover:text-slate-700"
                         }`}
                       >
                         {d === "agree" ? <ThumbsUp className="size-3.5" /> : <ThumbsDown className="size-3.5" />} {t(`review.${d}`)}
@@ -184,18 +206,46 @@ function EditorBody({ result, action, onClose, onUpdate }: EditorProps) {
         {error && <div role="alert" className="rounded-xl bg-rose-50 px-3 py-2.5 text-sm text-rose-700 ring-1 ring-rose-200">{error}</div>}
       </div>
 
-      <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200/70 bg-white/70 px-6 py-4">
-        <button type="button" className="btn-ghost" onClick={saveDraft} disabled={busy !== null || result.physician_report?.status === "final"}>
-          {busy === "draft" ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />} {t("review.saveDraft")}
-        </button>
-        <button
-          type="button"
-          onClick={sign}
-          disabled={!signer || busy !== null || (action === "reject" && !notes.trim()) || !sections.impression.trim()}
-          className={action === "reject" ? "btn bg-rose-500 text-white hover:bg-rose-600" : "btn-primary"}
-        >
-          {busy === "sign" ? <LoaderCircle className="size-4 animate-spin" /> : <FileSignature className="size-4" />} {t("review.sign")}
-        </button>
+      <div className="space-y-3 border-t border-slate-200/70 bg-surface/70 px-6 py-4">
+        {warnings.length > 0 && (
+          <section className="max-h-60 overflow-y-auto rounded-2xl bg-amber-50/90 p-4 ring-1 ring-amber-200" aria-labelledby="presign-title">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="size-4 shrink-0 text-amber-600" />
+              <h3 id="presign-title" className="text-sm font-semibold text-amber-950">{t("review.safetyTitle")}</h3>
+            </div>
+            <p className="mt-0.5 text-xs text-amber-900/70">{t("review.safetyHint")}</p>
+            <ul className="mt-2.5 space-y-1.5">
+              {warnings.map(({ id, icon: Icon, text }) => (
+                <li key={id} className="flex items-start gap-2 text-sm text-amber-950">
+                  <Icon className="mt-0.5 size-3.5 shrink-0 text-amber-600" /> <span>{text}</span>
+                </li>
+              ))}
+            </ul>
+            <label className="mt-3 flex cursor-pointer items-start gap-2.5 rounded-xl bg-surface/80 px-3 py-2.5 text-sm font-semibold text-ink ring-1 ring-amber-200">
+              <input
+                type="checkbox"
+                className="mt-0.5 size-4 shrink-0 accent-emerald-600"
+                checked={acknowledged}
+                onChange={(e) => setAcknowledgedFor(e.target.checked ? warningKey : null)}
+              />
+              {t("review.acknowledge")}
+            </label>
+          </section>
+        )}
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {!acknowledged && <span className="mr-auto text-xs text-amber-700">{t("review.acknowledgeRequired")}</span>}
+          <button type="button" className="btn-ghost" onClick={saveDraft} disabled={busy !== null || result.physician_report?.status === "final"}>
+            {busy === "draft" ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />} {t("review.saveDraft")}
+          </button>
+          <button
+            type="button"
+            onClick={sign}
+            disabled={!signer || busy !== null || (action === "reject" && !notes.trim()) || !sections.impression.trim() || !acknowledged}
+            className={action === "reject" ? "btn bg-rose-500 text-white hover:bg-rose-600" : "btn-primary"}
+          >
+            {busy === "sign" ? <LoaderCircle className="size-4 animate-spin" /> : <FileSignature className="size-4" />} {t("review.sign")}
+          </button>
+        </div>
       </div>
     </>
   );

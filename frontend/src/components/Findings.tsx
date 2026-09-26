@@ -40,11 +40,11 @@ export function FindingCard({ finding, index, selected, threshold, onSelect }: {
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h3 className="text-base font-bold text-ink">{name(finding.name)}</h3>
+          <h3 className="text-base font-semibold text-ink">{name(finding.name)}</h3>
           <span className={`chip mt-1.5 ${style.chip}`}>{t(`levels.${finding.level}`)}</span>
         </div>
         <div className="text-right">
-          <div className="text-2xl font-extrabold tabular-nums text-ink">{finding.score.toFixed(2)}</div>
+          <div className="text-2xl font-semibold tabular-nums text-ink">{finding.score.toFixed(2)}</div>
           <div className="eyebrow" title={t("findings.scoresTooltip")}>{t("findings.aiScore")}</div>
         </div>
       </div>
@@ -100,7 +100,7 @@ export function FindingsPanel({ result, selected, onSelect }: { result: Analysis
       <div className="flex items-end justify-between px-1">
         <div>
           <div className="eyebrow">{t("findings.eyebrow")}</div>
-          <h2 id="findings-title" className="text-lg font-bold text-ink">
+          <h2 id="findings-title" className="text-lg font-semibold text-ink">
             {result.findings.length ? t("findings.flagged", { n: result.findings.length }) : t("findings.none")}
           </h2>
         </div>
@@ -146,8 +146,8 @@ export function MeasurementCard({ measurement, view }: { measurement: Measuremen
       <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-rose-500"><HeartPulse className="size-5" /></div>
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-3">
-          <div className="font-bold text-ink">{finding(measurement.label)}</div>
-          <div className="text-xl font-extrabold tabular-nums text-ink">{measurement.value.toFixed(2)}</div>
+          <div className="font-semibold text-ink">{finding(measurement.label)}</div>
+          <div className="text-xl font-semibold tabular-nums text-ink">{measurement.value.toFixed(2)}</div>
         </div>
         {measurement.reference !== null && (
           <div className={`mt-0.5 text-xs font-semibold ${above ? "text-amber-600" : "text-emerald-600"}`}>

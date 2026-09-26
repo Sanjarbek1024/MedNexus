@@ -5,6 +5,9 @@ import {
   Columns2,
   FilePlus2,
   FileSignature,
+  Gauge,
+  ImagePlus,
+  Sparkles,
   Fingerprint,
   LoaderCircle,
   MessagesSquare,
@@ -22,14 +25,15 @@ import { useEffect, useState } from "react";
 import { ChatPanel } from "../components/ChatPanel";
 import { FindingsPanel, MeasurementCard } from "../components/Findings";
 import { ImageViewer } from "../components/ImageViewer";
-import { AssessmentCard, PatientResult } from "../components/PatientResult";
+import { DontMissPanel } from "../components/Differential";
+import { AddImagingCard, IntakeSummary, PipelineTrace, RulesPanel } from "../components/ClinicalPanels";
+import { AssessmentCard } from "../components/PatientResult";
 import { ReportCard } from "../components/ReportCard";
 import { ReportEditor } from "../components/ReportEditor";
 import { SafetyPanel } from "../components/SafetyPanel";
 import { PriorityBadge, Skeleton, StatusChip } from "../components/ui";
 import { useI18n } from "../i18n";
 import { api, ApiError, type AnalysisResult, type AuditEvent, type ReviewAction } from "../lib/api";
-import { useAuth } from "../lib/auth";
 import { caseNumber } from "../lib/format";
 import { Link, navigate } from "../lib/router";
 
@@ -39,6 +43,10 @@ export const rememberCase = (result: AnalysisResult) => recent.set(result.case_i
 
 const EVENT_ICONS: Record<string, LucideIcon> = {
   case_uploaded: ScanLine,
+  case_created: FilePlus2,
+  rules_evaluated: Gauge,
+  imaging_attached: ImagePlus,
+  assessment_generated: Sparkles,
   analysis_created: ScanLine,
   report_generated: FilePlus2,
   review_confirm: ThumbsUp,
@@ -53,7 +61,7 @@ function AuditTrail({ events }: { events: AuditEvent[] }) {
     <section className="card p-5" aria-labelledby="audit-title">
       <div className="flex items-center gap-2">
         <Fingerprint className="size-5 text-slate-500" />
-        <h2 id="audit-title" className="font-bold text-ink">{t("audit.title")}</h2>
+        <h2 id="audit-title" className="font-semibold text-ink">{t("audit.title")}</h2>
       </div>
       <p className="mt-1 text-xs text-slate-500">{t("audit.subtitle")}</p>
       <ol className="mt-4 space-y-3">
@@ -86,7 +94,7 @@ function PhysicianReportCard({ result, onAmend }: { result: AnalysisResult; onAm
     <section className={`card p-5 ${final ? "border-l-4 border-l-emerald-400" : "border-l-4 border-l-sky-300"}`}>
       <div className="flex flex-wrap items-center gap-2">
         <FileSignature className={`size-5 ${final ? "text-emerald-600" : "text-sky-500"}`} />
-        <h2 className="font-bold text-ink">{t("review.editorTitle")}</h2>
+        <h2 className="font-semibold text-ink">{t("review.editorTitle")}</h2>
         <span className={`chip ml-auto ${final ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200" : "bg-sky-50 text-sky-700 ring-1 ring-sky-200"}`}>
           {final ? t("review.signed") : t("review.saveDraft")}
         </span>
@@ -124,7 +132,7 @@ function RejectedCard({ result }: { result: AnalysisResult }) {
         <div className="flex size-11 items-center justify-center rounded-2xl bg-rose-50 text-rose-500"><CircleX className="size-6" /></div>
         <div>
           <div className="eyebrow text-rose-500">{t("case.rejectedGate")}</div>
-          <h2 className="text-xl font-bold text-ink">{t("case.rejectedTitle")}</h2>
+          <h2 className="text-xl font-semibold text-ink">{t("case.rejectedTitle")}</h2>
         </div>
       </div>
       <p className="mt-4 text-sm text-slate-600">{t("case.rejectedText")}</p>
@@ -148,7 +156,7 @@ function CaseView({ initial }: { initial: AnalysisResult }) {
 
   useEffect(() => {
     if (!result.patient) return;
-    api.cases({ patient_id: result.patient.id, limit: 50 }).then((body) => setStudies(body.items.filter((c) => c.status === "ai_ready" || c.status === "reviewed").length), () => undefined);
+    api.cases({ patient_id: result.patient.id, limit: 50 }).then((body) => setStudies(body.items.filter((c) => c.has_image !== false && (c.status === "ai_ready" || c.status === "reviewed")).length), () => undefined);
   }, [result.patient]);
 
   return (
@@ -159,13 +167,14 @@ function CaseView({ initial }: { initial: AnalysisResult }) {
             <ArrowLeft className="size-4" /> {t("case.history")}
           </Link>
           <div className="mt-2 flex flex-wrap items-center gap-3">
-            <h1 className="text-3xl font-extrabold tracking-tight text-ink">{t("common.caseNumber", { id: caseNumber(result.case_id) })}</h1>
+            <h1 className="text-3xl font-semibold tracking-tight text-ink">{t("common.caseNumber", { id: caseNumber(result.case_id) })}</h1>
             <StatusChip status={result.status} />
             {reviewable && <PriorityBadge priority={result.priority} reason={result.priority_reason} />}
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-slate-500">
             {result.patient && <span className="font-mono font-semibold text-slate-600">{result.patient.pseudonym}</span>}
-            <span>· {study(result.selection)}</span>
+            {result.clinical?.chief_complaint && <span className="font-semibold text-slate-700">· {result.clinical.chief_complaint}</span>}
+            <span>· {result.has_image ? study(result.selection) : t("intake.noImage")}</span>
             <span>· {date(result.acquired_at ?? result.created_at, false)}</span>
             {totalMs > 0 && <span>· {t("case.analyzedIn", { s: (totalMs / 1000).toFixed(1) })}</span>}
           </div>
@@ -185,25 +194,49 @@ function CaseView({ initial }: { initial: AnalysisResult }) {
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-        <div className="space-y-6 lg:sticky lg:top-20">
-          <ImageViewer result={result} selected={selected} onSelect={setSelected} shortcuts />
+      <div className="mt-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+        <div className="space-y-4">
+          <PhysicianReportCard result={result} onAmend={() => setEditor("edit")} />
+          {!result.rejected && <AssessmentCard result={result} onUpdate={setResult} />}
+          <DontMissPanel assessment={result.assessment} />
         </div>
         <div className="space-y-4">
-          {result.rejected ? (
-            <RejectedCard result={result} />
-          ) : (
-            <>
-              <PhysicianReportCard result={result} onAmend={() => setEditor("edit")} />
-              <FindingsPanel result={result} selected={selected} onSelect={setSelected} />
-              <AssessmentCard result={result} onUpdate={setResult} />
-              {result.measurements.map((m) => <MeasurementCard key={m.id} measurement={m} view={result.selection.view} />)}
-            </>
-          )}
-          <SafetyPanel result={result} />
-          {!result.rejected && <ReportCard result={result} onUpdate={setResult} />}
-          <AuditTrail events={result.audit} />
+          <RulesPanel rules={result.rules} />
+          <IntakeSummary result={result} />
+          <PipelineTrace steps={result.assessment?.pipeline ?? []} mode={result.assessment?.mode} notes={result.assessment?.critic_notes} />
         </div>
+      </div>
+
+      <div className="mt-10 flex items-center gap-3">
+        <h2 className="text-xl font-semibold tracking-tight text-ink">{t("imaging.title")}</h2>
+        <div className="h-px flex-1 bg-line" />
+        {result.has_image && <span className="font-mono text-xs text-slate-400">{study(result.selection)}</span>}
+      </div>
+      {result.has_image ? (
+        <div className="mt-4 grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+          <div className="space-y-6 lg:sticky lg:top-20">
+            <ImageViewer result={result} selected={selected} onSelect={setSelected} shortcuts />
+          </div>
+          <div className="space-y-4">
+            {result.rejected ? (
+              <RejectedCard result={result} />
+            ) : (
+              <>
+                <FindingsPanel result={result} selected={selected} onSelect={setSelected} />
+                {result.measurements.map((m) => <MeasurementCard key={m.id} measurement={m} view={result.selection.view} />)}
+              </>
+            )}
+            <SafetyPanel result={result} />
+            {!result.rejected && <ReportCard result={result} onUpdate={setResult} />}
+          </div>
+        </div>
+      ) : (
+        <div className="mt-4">
+          <AddImagingCard result={result} onUpdate={setResult} />
+        </div>
+      )}
+      <div className="mt-6 max-w-3xl">
+        <AuditTrail events={result.audit} />
       </div>
 
       {reviewable && result.status !== "reviewed" && (
@@ -212,7 +245,7 @@ function CaseView({ initial }: { initial: AnalysisResult }) {
             initial={{ y: 40, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3, type: "spring", bounce: 0.25 }}
-            className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/80 bg-white/85 p-1.5 shadow-xl sm:pl-4 shadow-slate-900/10 backdrop-blur-xl"
+            className="pointer-events-auto flex items-center gap-2 rounded-full border border-line bg-surface/85 p-1.5 shadow-xl sm:pl-4 shadow-black/10 backdrop-blur-xl"
           >
             <span className="chip mr-1 hidden bg-amber-50 text-amber-700 ring-1 ring-amber-200 sm:inline-flex">{t("status.draft")}</span>
             <button type="button" className="btn-primary rounded-full" onClick={() => setEditor("confirm")}><ThumbsUp className="size-4" /> {t("review.confirm")}</button>
@@ -227,7 +260,7 @@ function CaseView({ initial }: { initial: AnalysisResult }) {
           onClick={() => navigate("/analyze")}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          className="btn rounded-full bg-ink px-5 py-3 text-white shadow-xl shadow-slate-900/20 hover:bg-slate-800"
+          className="btn rounded-full bg-ink px-5 py-3 text-canvas shadow-xl shadow-black/20 hover:opacity-90"
         >
           <Plus className="size-4" /> {t("case.newAnalysis")}
         </motion.button>
@@ -241,8 +274,6 @@ function CaseView({ initial }: { initial: AnalysisResult }) {
 
 export function CasePage({ caseId }: { caseId: number }) {
   const { t } = useI18n();
-  const { user } = useAuth();
-  const doctor = user?.role === "doctor";
   const [result, setResult] = useState<AnalysisResult | null>(recent.get(caseId) ?? null);
   const [error, setError] = useState<string | null>(null);
   const pending = result?.status === "queued" || result?.status === "analyzing";
@@ -262,7 +293,7 @@ export function CasePage({ caseId }: { caseId: number }) {
       <div className="mx-auto flex max-w-lg flex-col items-center gap-4 px-6 pt-24 text-center">
         <TriangleAlert className="size-10 text-slate-400" />
         <p className="text-slate-600">{error}</p>
-        <Link href={doctor ? "/worklist" : "/my"} className="btn-ghost"><ArrowLeft className="size-4" /> {doctor ? t("case.history") : t("patient.back")}</Link>
+        <Link href="/worklist" className="btn-ghost"><ArrowLeft className="size-4" /> {t("case.history")}</Link>
       </div>
     );
   }
@@ -278,13 +309,12 @@ export function CasePage({ caseId }: { caseId: number }) {
     return (
       <div className="mx-auto flex max-w-lg flex-col items-center gap-4 px-6 pt-24 text-center">
         {result.status === "failed" ? <TriangleAlert className="size-10 text-rose-500" /> : <LoaderCircle className="size-10 animate-spin text-emerald-500" />}
-        <h1 className="text-2xl font-bold text-ink">{result.status === "failed" ? t("case.failedTitle") : t("case.pendingTitle")}</h1>
+        <h1 className="text-2xl font-semibold text-ink">{result.status === "failed" ? t("case.failedTitle") : t("case.pendingTitle")}</h1>
         {result.status !== "failed" && <p className="text-slate-500">{t("case.pendingText")}</p>}
-        {result.image.url && <img src={result.image.url} alt="" className="size-40 rounded-2xl bg-slate-900 object-contain" />}
-        <Link href={doctor ? "/worklist" : "/my"} className="btn-ghost"><ArrowLeft className="size-4" /> {doctor ? t("case.history") : t("patient.back")}</Link>
+        {result.image.url && <img src={result.image.url} alt="" className="size-40 rounded-2xl bg-night object-contain" />}
+        <Link href="/worklist" className="btn-ghost"><ArrowLeft className="size-4" /> {t("case.history")}</Link>
       </div>
     );
   }
-  const key = `${result.case_id}-${result.status}`;
-  return doctor ? <CaseView key={key} initial={result} /> : <PatientResult key={key} initial={result} />;
+  return <CaseView key={`${result.case_id}-${result.status}`} initial={result} />;
 }

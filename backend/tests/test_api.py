@@ -61,7 +61,7 @@ def test_analysis_streams_progress_then_result(client: TestClient, sample: Calla
         for block in response.text.strip().split("\n\n")
     ]
     stages = [data["stage"] for name, data in events if name == "progress"]
-    assert stages[0] == "quality" and stages[-1] == "report"
+    assert stages[:2] == ["clinical", "quality"] and stages[-1] == "report"
     assert "explainability" in stages
     name, result = events[-1]
     assert name == "result"

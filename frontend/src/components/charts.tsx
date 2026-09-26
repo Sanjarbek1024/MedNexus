@@ -1,9 +1,9 @@
 import { useState } from "react";
 
-// Validated palette (dataviz validator, light surface): two-series blue/emerald passes every
-// check; the three-series stack (emerald/yellow/violet) passes CVD all-pairs, and yellow's low
-// contrast is relieved by the numeric table the stack sits in.
-export const SERIES = { blue: "#2a78d6", emerald: "#059669", yellow: "#eda100", violet: "#4a3aa7" };
+// Series colors chosen to hold contrast on both the light and the dark surface; the three-series
+// stack (green/yellow/violet) stays distinguishable for common color-vision deficiencies, and
+// yellow is backed by the numeric table the stack sits in.
+export const SERIES = { blue: "#3d8bfd", emerald: "#22b83a", yellow: "#eda100", violet: "#8b7cf6" };
 
 interface Tip { left: number | string; top: number; lines: string[] }
 
@@ -11,11 +11,11 @@ function Tooltip({ tip }: { tip: Tip | null }) {
   if (!tip) return null;
   return (
     <div
-      className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-xl bg-ink px-3 py-2 text-xs whitespace-nowrap text-white shadow-lg"
+      className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-xl bg-ink px-3 py-2 text-xs whitespace-nowrap text-canvas shadow-lg"
       style={{ left: tip.left, top: tip.top - 8 }}
     >
       {tip.lines.map((line, i) => (
-        <div key={i} className={i === 0 ? "font-semibold" : "text-white/80"}>{line}</div>
+        <div key={i} className={i === 0 ? "font-semibold" : "opacity-80"}>{line}</div>
       ))}
     </div>
   );
@@ -54,7 +54,7 @@ export function GroupedBars({ categories, series, height = 180 }: {
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full" role="img">
         {ticks.map((tick) => (
           <g key={tick}>
-            <line x1={pad.left} x2={width - pad.right} y1={y(tick)} y2={y(tick)} stroke="#e2e8f0" strokeDasharray={tick ? "3 4" : undefined} />
+            <line x1={pad.left} x2={width - pad.right} y1={y(tick)} y2={y(tick)} className="stroke-slate-200" strokeDasharray={tick ? "3 4" : undefined} />
             <text x={pad.left - 6} y={y(tick) + 3} textAnchor="end" className="fill-slate-400 text-[10px]">{tick}</text>
           </g>
         ))}
@@ -130,7 +130,7 @@ export function RateLine({ points, color = SERIES.emerald, height = 170, format 
       >
         {[0, 0.5, 1].map((tick) => (
           <g key={tick}>
-            <line x1={pad.left} x2={width - pad.right} y1={y(tick)} y2={y(tick)} stroke="#e2e8f0" strokeDasharray={tick ? "3 4" : undefined} />
+            <line x1={pad.left} x2={width - pad.right} y1={y(tick)} y2={y(tick)} className="stroke-slate-200" strokeDasharray={tick ? "3 4" : undefined} />
             <text x={pad.left - 6} y={y(tick) + 3} textAnchor="end" className="fill-slate-400 text-[10px]">{format(tick)}</text>
           </g>
         ))}
@@ -139,10 +139,10 @@ export function RateLine({ points, color = SERIES.emerald, height = 170, format 
         ))}
         {points.map((p, i) =>
           p.value === null ? null : (
-            <circle key={p.label} cx={x(i)} cy={y(p.value)} r={active === i ? 5 : 4} fill={color} stroke="white" strokeWidth={2} />
+            <circle key={p.label} cx={x(i)} cy={y(p.value)} r={active === i ? 5 : 4} fill={color} className="stroke-surface" strokeWidth={2} />
           ),
         )}
-        {active !== null && <line x1={x(active)} x2={x(active)} y1={pad.top} y2={pad.top + plotH} stroke="#94a3b8" strokeDasharray="2 3" />}
+        {active !== null && <line x1={x(active)} x2={x(active)} y1={pad.top} y2={pad.top + plotH} className="stroke-slate-400" strokeDasharray="2 3" />}
         {points.map((p, i) => (
           <text key={p.label} x={x(i)} y={height - 8} textAnchor="middle" className="fill-slate-400 text-[10px]">
             {p.label}

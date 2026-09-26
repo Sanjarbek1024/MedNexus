@@ -7,19 +7,22 @@ from datetime import date, datetime, time, timezone
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field, ValidationError
 from sqlmodel import Session, select
 
 from app.analyzers.base import Stage
 from app.api.deps import CurrentUser, Queue, Service, SessionDep, limit
 from app.config import get_settings
-from app.db.models import Patient, User
+from app.db.models import Case, Patient, User
 from app.db.session import get_engine
 from app.imaging import ImageDecodeError, decode_upload
 from app.languages import DEFAULT_LANGUAGE, LANGUAGES
-from app.schemas import AnalysisResult, BatchUploadResult, Selection
+from app.schemas import AnalysisResult, BatchUploadResult, ClinicalData, ClinicalRules, Selection
 from app.services import uploads
+from app.services.analysis import ReviewNotAllowedError
 from app.services.assessment import PatientContext
-from app.services.cases import assemble, summaries
+from app.services.cases import CaseNotFoundError, assemble, get_case, summaries
+from app.services.clinical_rules import evaluate
 
 router = APIRouter(tags=["analysis"])
 logger = logging.getLogger(__name__)
@@ -33,7 +36,9 @@ def _pseudonym_key() -> str:
     return hmac.new(settings.signing_key().encode(), b"patient-pseudonyms", "sha256").hexdigest()
 
 
-def resolve_patient(session: Session, user: User, upload: uploads.SanitizedUpload, patient_id: int | None) -> Patient:
+def resolve_patient(
+    session: Session, user: User, upload: uploads.SanitizedUpload | None, patient_id: int | None
+) -> Patient:
     """The chosen patient, the patient linked to this DICOM PatientID, or a new pseudonym."""
     if patient_id is not None:
         patient = session.get(Patient, patient_id)
@@ -41,7 +46,7 @@ def resolve_patient(session: Session, user: User, upload: uploads.SanitizedUploa
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Patient not found")
         return patient
     source_hash = None
-    if upload.source_patient_id:
+    if upload is not None and upload.source_patient_id:
         source_hash = uploads.pseudonym_source_hash(_pseudonym_key(), user.id, upload.source_patient_id)
         existing = session.exec(
             select(Patient).where(Patient.owner_id == user.id, Patient.source_hash == source_hash)
@@ -81,13 +86,23 @@ async def _read_upload(file: UploadFile) -> tuple[uploads.SanitizedUpload, objec
     return upload, image
 
 
-def _context(symptoms: str | None, age: int | None, sex: str | None) -> PatientContext:
+def _clinical(raw: str | None) -> ClinicalData | None:
+    if not raw or not raw.strip():
+        return None
+    try:
+        data = ClinicalData.model_validate_json(raw)
+    except ValidationError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"Invalid clinical data: {exc.errors()[0]['msg']}") from exc
+    return None if data.is_empty() and not any(data.vitals.model_dump(exclude={"on_oxygen", "consciousness"}).values()) else data
+
+
+def _context(symptoms: str | None, age: int | None, sex: str | None, clinical: ClinicalData | None = None) -> PatientContext:
     symptoms = (symptoms or "").strip()[:2000] or None
     if age is not None and not 0 <= age <= 120:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Age must be between 0 and 120")
     if sex not in (None, "", "male", "female"):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Sex must be 'male' or 'female'")
-    return PatientContext(symptoms, age, sex or None)
+    return PatientContext(symptoms, age, sex or None, clinical=clinical.model_dump() if clinical else None)
 
 
 def _acquired(value: date | None) -> datetime | None:
@@ -105,33 +120,82 @@ async def analyze(
     user: CurrentUser,
     session: SessionDep,
     service: Service,
+    file: UploadFile | None = File(None, description="Optional DICOM, PNG or JPEG"),
+    modality: str | None = Form(None),
+    region: str | None = Form(None),
+    view: str | None = Form(None),
+    language: str = Form(DEFAULT_LANGUAGE),
+    patient_id: int | None = Form(None),
+    acquired_on: date | None = Form(None),
+    symptoms: str | None = Form(None, max_length=2000, description="History of present illness"),
+    age: int | None = Form(None),
+    sex: str | None = Form(None, description="male | female"),
+    clinical: str | None = Form(None, max_length=20000, description="ClinicalData as JSON"),
+) -> AnalysisResult | StreamingResponse:
+    """Create a case from the clinical intake, optionally with one image, and analyze it.
+
+    Without an image the differential comes from the intake alone (rules engine → clinical
+    reasoner → safety critic). Send ``Accept: text/event-stream`` to receive ``progress`` events
+    followed by a final ``result`` event.
+    """
+    intake = _clinical(clinical)
+    context = _context(symptoms, age, sex, intake)
+    if file is None or not file.filename:
+        if language not in LANGUAGES:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"Unknown language '{language}'")
+        if intake is None and not context.symptoms:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Enter the complaint or symptoms, or upload an image")
+        patient = resolve_patient(session, user, None, patient_id)
+        case = service.create_clinical_case(session, user, patient, language, context)
+    else:
+        if not (modality and region and view):
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Choose the study type for the image")
+        selection = _validate_selection(service, modality, region, view, language)
+        upload, image = await _read_upload(file)
+        patient = resolve_patient(session, user, upload, patient_id)
+        case = service.create_case(session, user, upload, image, selection, patient, _acquired(acquired_on), context)
+    response = _respond(request, service, case.id)
+    return await response if asyncio.iscoroutine(response) else response
+
+
+@router.post(
+    "/cases/{case_id}/imaging",
+    response_model=AnalysisResult,
+    responses={200: {"content": {"text/event-stream": {}}}},
+    dependencies=[Depends(limit("analysis", "analysis_rate_per_minute"))],
+)
+async def attach_imaging(
+    case_id: int,
+    request: Request,
+    user: CurrentUser,
+    session: SessionDep,
+    service: Service,
     file: UploadFile = File(description="DICOM, PNG or JPEG"),
     modality: str = Form(),
     region: str = Form(),
     view: str = Form(),
-    language: str = Form(DEFAULT_LANGUAGE),
-    patient_id: int | None = Form(None),
-    acquired_on: date | None = Form(None),
-    symptoms: str | None = Form(None, max_length=2000, description="What the person reports"),
-    age: int | None = Form(None),
-    sex: str | None = Form(None, description="male | female"),
 ) -> AnalysisResult | StreamingResponse:
-    """Upload one study and analyze it immediately.
-
-    Send ``Accept: text/event-stream`` to receive ``progress`` events (quality, models,
-    explainability, report) followed by a final ``result`` event.
-    """
-    selection = _validate_selection(service, modality, region, view, language)
-    context = _context(symptoms, age, sex)
+    """Add an image to a clinical case; the differential is rebuilt with the image."""
+    try:
+        case = get_case(session, case_id, user)
+    except CaseNotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Case not found") from exc
+    selection = _validate_selection(service, modality, region, view, case.language)
     upload, image = await _read_upload(file)
-    patient = resolve_patient(session, user, upload, patient_id)
-    case = service.create_case(session, user, upload, image, selection, patient, _acquired(acquired_on), context)
-    case_id = case.id
+    try:
+        service.attach_image(session, case, user, upload, image, selection)
+    except ReviewNotAllowedError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+    response = _respond(request, service, case_id)
+    return await response if asyncio.iscoroutine(response) else response
+
+
+def _respond(request: Request, service, case_id: int):  # noqa: ANN001, ANN202 - a stream or an awaitable result
 
     def run(progress: Callable[[Stage], None]) -> AnalysisResult:
         service.run(case_id, progress)
         with Session(get_engine()) as fresh:
-            return assemble(fresh, fresh.get(type(case), case_id))
+            return assemble(fresh, fresh.get(Case, case_id))
 
     if "text/event-stream" in request.headers.get("accept", ""):
         return StreamingResponse(
@@ -139,7 +203,7 @@ async def analyze(
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
-    return await asyncio.to_thread(run, lambda stage: None)
+    return asyncio.to_thread(run, lambda stage: None)
 
 
 @router.post(
@@ -204,3 +268,14 @@ async def _events(run: Callable[[Callable[[Stage], None]], AnalysisResult]) -> A
     while (message := await queue.get()) is not None:
         yield message
     await worker
+
+
+class RulesPreview(BaseModel):
+    clinical: ClinicalData
+    age: int | None = Field(default=None, ge=0, le=120)
+
+
+@router.post("/clinical/evaluate", response_model=ClinicalRules, tags=["clinical"])
+def evaluate_rules(body: RulesPreview, _: CurrentUser) -> ClinicalRules:
+    """Live triage preview while the intake is being filled in: the deterministic rules only."""
+    return evaluate(body.clinical, body.age)

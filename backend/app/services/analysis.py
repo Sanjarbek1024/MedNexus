@@ -12,11 +12,12 @@ from sqlmodel import Session
 from app.analyzers.base import CheckStatus, Stage
 from app.config import Settings
 from app.db import audit
-from app.db.models import Analysis, Case, CaseStatus, Patient, Priority, Report, Review, Role, User, utcnow
+from app.db.models import CLINICAL, Analysis, Case, CaseStatus, Patient, Priority, Report, Review, User, utcnow
 from app.db.session import get_engine
 from app.imaging import Box, StudyImage, decode_upload
 from app.schemas import (
     AnalysisResult,
+    ClinicalData,
     BoxOut,
     CheckOut,
     DetectionOut,
@@ -32,7 +33,13 @@ from app.schemas import (
     StructureOut,
 )
 from app.services import overlays, uploads
-from app.services.assessment import AssessmentUnavailableError, PatientContext, assess
+from app.services.assessment import (
+    AssessmentUnavailableError,
+    PatientContext,
+    assess_clinical,
+    assess_with_pipeline,
+)
+from app.services.clinical_rules import evaluate, higher, rules_reason
 from app.services.cases import assemble, candidate_labels, latest
 from app.services.llm import LLM
 from app.services.pipeline import AnalysisPipeline, PipelineOutcome, ProgressFn
@@ -163,6 +170,7 @@ class AnalysisService:
             symptoms=context.symptoms if context else None,
             patient_age=context.age if context else None,
             patient_sex=context.sex if context else None,
+            clinical=context.clinical if context else None,
         )
         session.add(case)
         session.commit()
@@ -180,6 +188,56 @@ class AnalysisService:
         )
         return case
 
+    def create_clinical_case(
+        self, session: Session, user: User, patient: Patient, language: str, context: PatientContext
+    ) -> Case:
+        """A case built from the clinical intake alone; imaging can be attached later."""
+        case = Case(
+            owner_id=user.id, patient_id=patient.id, status=CaseStatus.QUEUED,
+            modality=CLINICAL, region="none", view="none", language=language,
+            image_sha256="", image_format="", upload_path="", thumbnail=None,
+            symptoms=context.symptoms, patient_age=context.age, patient_sex=context.sex,
+            clinical=context.clinical,
+        )
+        session.add(case)
+        session.commit()
+        session.refresh(case)
+        audit.record(session, "case_created", user.full_name, {
+            "patient": patient.pseudonym, "mode": "clinical", "intake": context.clinical or {},
+        }, user_id=user.id, case_id=case.id)
+        return case
+
+    def attach_image(
+        self, session: Session, case: Case, user: User, upload: uploads.SanitizedUpload, image: StudyImage,
+        selection: Selection,
+    ) -> Case:
+        """Add imaging to an existing clinical case; the differential is rebuilt with the image."""
+        if case.modality != CLINICAL:
+            raise ReviewNotAllowedError("this case already has an image")
+        if case.status == CaseStatus.REVIEWED:
+            raise ReviewNotAllowedError("the case is signed")
+        case.modality, case.region, case.view = selection.modality, selection.region, selection.view
+        case.image_sha256, case.image_format = upload.sha256, upload.original_format
+        case.upload_path = uploads.store(self.settings.uploads_dir, upload)
+        case.thumbnail = overlays.grayscale_jpeg(image, 160, 80)
+        case.status = CaseStatus.QUEUED
+        session.add(case)
+        session.commit()
+        audit.record(session, "imaging_attached", user.full_name, {
+            "image_sha256": upload.sha256, "format": upload.original_format, "selection": selection.model_dump(),
+        }, user_id=user.id, case_id=case.id)
+        return case
+
+    @staticmethod
+    def context(case: Case) -> PatientContext:
+        data = ClinicalData.model_validate(case.clinical) if case.clinical else None
+        rules = evaluate(data, case.patient_age) if data else None
+        return PatientContext(
+            case.symptoms, case.patient_age, case.patient_sex,
+            clinical=data.model_dump() if data else None,
+            rules=rules.model_dump(mode="json") if rules else None,
+        )
+
     # --- Analysis ------------------------------------------------------------------------------
 
     def run(self, case_id: int, progress: ProgressFn) -> None:
@@ -192,7 +250,10 @@ class AnalysisService:
             session.add(case)
             session.commit()
             try:
-                self._analyze(session, case, progress)
+                if case.modality == CLINICAL:
+                    self._analyze_clinical(session, case, progress)
+                else:
+                    self._analyze(session, case, progress)
             except Exception:
                 logger.exception("Analysis of case %s failed", case_id)
                 session.rollback()
@@ -203,7 +264,23 @@ class AnalysisService:
                 session.commit()
                 audit.record(session, "analysis_failed", "system", {}, case_id=case_id)
 
+    def _analyze_clinical(self, session: Session, case: Case, progress: ProgressFn) -> None:
+        """No image: rules engine → clinical reasoner → safety critic → guardrails."""
+        progress(Stage.CLINICAL)
+        context = self.context(case)
+        rules = evaluate(ClinicalData.model_validate(case.clinical) if case.clinical else None, case.patient_age)
+        case.priority, case.priority_reason = rules.priority, rules_reason(rules)
+        case.analyzed_at = utcnow()
+        case.status = CaseStatus.AI_READY
+        session.add(case)
+        session.commit()
+        audit.record(session, "rules_evaluated", "system", rules.model_dump(mode="json"), case_id=case.id)
+        progress(Stage.REPORT)
+        self._write_assessment(session, case, None, None, case.language, context)
+
     def _analyze(self, session: Session, case: Case, progress: ProgressFn) -> None:
+        progress(Stage.CLINICAL)
+        context = self.context(case)
         data = (self.settings.uploads_dir / case.upload_path).read_bytes()
         image = decode_upload(data, case.image_sha256)
         selection = Selection(modality=case.modality, region=case.region, view=case.view, language=case.language)
@@ -232,6 +309,11 @@ class AnalysisService:
         else:
             case.status = CaseStatus.AI_READY
             case.priority, case.priority_reason = prioritize(result.findings, self.registry.urgent_findings)
+            if context.rules:
+                rules_priority = context.rules["priority"]
+                if higher(rules_priority, case.priority) != case.priority:
+                    case.priority = rules_priority
+                    case.priority_reason = rules_reason(evaluate(ClinicalData.model_validate(case.clinical), case.patient_age))
         session.add(case)
         session.commit()
         audit.record(session, "analysis_created", "system", {
@@ -245,33 +327,42 @@ class AnalysisService:
         if not result.rejected:
             progress(Stage.REPORT)
             self._write_report(session, case, result, case.language)
-            self._write_assessment(session, case, result, image, case.language)
+            self._write_assessment(session, case, result, image, case.language, context)
 
     def _write_assessment(
-        self, session: Session, case: Case, result: AnalysisResult, image: StudyImage, language: str
+        self, session: Session, case: Case, result: AnalysisResult | None, image: StudyImage | None, language: str,
+        context: PatientContext | None = None,
     ) -> None:
-        """Image + model outputs + symptoms → differential, stored as a report of kind "assessment"."""
-        if self.vision is None:
+        """The differential (with or without an image), stored as a report of kind "assessment"."""
+        reasoner = self.writer.llm
+        if image is not None and self.vision is None:
             return
-        owner = session.get(User, case.owner_id)
-        audience = "patient" if owner is not None and owner.role == Role.USER else "doctor"
-        context = PatientContext(case.symptoms, case.patient_age, case.patient_sex)
+        context = context or self.context(case)
         started = time.perf_counter()
         assessment, error = None, None
+        audience = "doctor"
+        model_name = reasoner.model if image is None else self.vision.model
         try:
-            assessment = assess(
-                self.vision, result, overlays.grayscale_jpeg(image, 768, 85), context, audience, language
-            )
+            if image is None or result is None:
+                assessment = assess_clinical(reasoner, context, language)
+            else:
+                assessment = assess_with_pipeline(
+                    self.vision, result, overlays.grayscale_jpeg(image, 768, 85), context, language, reasoner=reasoner,
+                )
         except AssessmentUnavailableError as exc:
             error = str(exc)
         except Exception as exc:  # noqa: BLE001 - any LLM or format failure leaves the case usable
             logger.warning("Assessment of case %s failed: %s", case.id, exc)
             error = "The assessment is unavailable right now. Please try again."
+        if assessment and assessment.differential and case.modality == CLINICAL:
+            case.headline = assessment.differential[0].name[:120]
+            case.finding_count = len(assessment.differential)
+            session.add(case)
         session.add(Report(
             case_id=case.id,
             kind="assessment",
             language=language,
-            model=self.vision.model,
+            model=assessment.model if assessment else model_name,
             error=error,
             content={
                 **(assessment.model_dump() if assessment else {}),
@@ -281,15 +372,19 @@ class AnalysisService:
         session.commit()
         audit.record(session, "assessment_generated", "system", {
             "language": language,
-            "model": self.vision.model,
+            "model": assessment.model if assessment else model_name,
             "audience": audience,
+            "pipeline": [step.model_dump() for step in assessment.pipeline] if assessment else None,
             "differential": [d.model_dump() for d in assessment.differential] if assessment else None,
             "error": error,
         }, case_id=case.id)
 
     def regenerate_assessment(self, session: Session, case: Case, language: str) -> None:
         if case.status not in (CaseStatus.AI_READY, CaseStatus.REVIEWED):
-            raise ReviewNotAllowedError("only analyzed images have an assessment")
+            raise ReviewNotAllowedError("only analyzed cases have an assessment")
+        if case.modality == CLINICAL:
+            self._write_assessment(session, case, None, None, language)
+            return
         image = decode_upload((self.settings.uploads_dir / case.upload_path).read_bytes(), case.image_sha256)
         self._write_assessment(session, case, assemble(session, case, with_audit=False), image, language)
 
@@ -321,7 +416,7 @@ class AnalysisService:
         }, case_id=case.id)
 
     def regenerate_report(self, session: Session, case: Case, language: str) -> None:
-        if case.status not in (CaseStatus.AI_READY, CaseStatus.REVIEWED):
+        if case.status not in (CaseStatus.AI_READY, CaseStatus.REVIEWED) or case.modality == CLINICAL:
             raise ReviewNotAllowedError("only analyzed images with findings have a report")
         self._write_report(session, case, assemble(session, case, with_audit=False), language)
 

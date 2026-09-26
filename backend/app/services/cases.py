@@ -8,6 +8,7 @@ from sqlmodel import Session, col, func, select
 from app.analyzers.base import CheckCategory, CheckStatus
 from app.db.audit import as_utc
 from app.db.models import (
+    CLINICAL,
     Analysis,
     AuditEvent,
     Case,
@@ -22,6 +23,7 @@ from app.schemas import (
     AuditEventOut,
     CaseSummary,
     CheckOut,
+    ClinicalData,
     ImageOut,
     PatientRef,
     PhysicianReport,
@@ -32,6 +34,7 @@ from app.schemas import (
 )
 from app.schemas import Assessment
 from app.schemas import Report as AIReport
+from app.services.clinical_rules import evaluate
 from app.services.hospitals import recommend, specialty_for
 
 
@@ -106,6 +109,8 @@ def summaries(session: Session, cases: list[Case]) -> list[CaseSummary]:
             reviewed_at=as_utc(c.reviewed_at) if c.reviewed_at else None,
             urgency=urgency.get(c.id),
             error=c.error,
+            has_image=c.modality != CLINICAL,
+            chief_complaint=(c.clinical or {}).get("chief_complaint") or None,
         )
         for c in cases
     ]
@@ -198,6 +203,10 @@ def assemble(session: Session, case: Case, with_audit: bool = True) -> AnalysisR
     result.symptoms = case.symptoms
     result.patient_age = case.patient_age
     result.patient_sex = case.patient_sex if case.patient_sex in ("male", "female") else None
+    result.has_image = case.modality != CLINICAL
+    if case.clinical:
+        result.clinical = ClinicalData.model_validate(case.clinical)
+        result.rules = evaluate(result.clinical, case.patient_age)
     assessment = latest(session, Report, case.id, kind="assessment")
     if assessment is not None:
         result.assessment = (

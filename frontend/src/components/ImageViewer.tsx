@@ -9,7 +9,7 @@ import { Modal } from "./ui";
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 8;
 const HEART = "#fb7185";
-const LUNG = "#34d399";
+const LUNG = "#5cff63";
 
 export type Point = { x: number; y: number };
 export interface ViewState { zoom: number; pan: Point }
@@ -76,7 +76,7 @@ function Viewport({ image, view, onChange, label, height, onImageClick, children
   return (
     <div
       ref={ref}
-      className={`relative ${height} touch-none overflow-hidden bg-[#060b09] select-none ${view.zoom > 1 ? "cursor-grab active:cursor-grabbing" : onImageClick ? "cursor-crosshair" : ""}`}
+      className={`relative ${height} touch-none overflow-hidden bg-night select-none ${view.zoom > 1 ? "cursor-grab active:cursor-grabbing" : onImageClick ? "cursor-crosshair" : ""}`}
       onPointerDown={(event) => {
         drag.current = { start: { x: event.clientX, y: event.clientY }, origin: view.pan, moved: false };
         event.currentTarget.setPointerCapture(event.pointerId);
@@ -268,7 +268,7 @@ export function ImageViewer({
             >
               {/* Only the selected finding is labelled, so labels of neighbouring boxes never collide. */}
               {(!labelled || f.name === labelled) && (
-                <span className="absolute -top-5 left-0 rounded bg-rose-500/90 px-1.5 text-[10px] font-bold whitespace-nowrap text-white">
+                <span className="absolute -top-5 left-0 rounded bg-rose-500/90 px-1.5 text-[10px] font-semibold whitespace-nowrap text-white">
                   {finding(f.name)} {box.score.toFixed(2)}
                 </span>
               )}
@@ -313,7 +313,7 @@ export function ImageViewer({
       )}
 
       <div className="relative">
-        <div className={`grid gap-px bg-slate-800 ${compare ? "grid-cols-2" : ""}`}>
+        <div className={`grid gap-px bg-black ${compare ? "grid-cols-2" : ""}`}>
           {compare && <Viewport image={result.image} view={view} onChange={setView} label={t("viewer.original")} height={height} />}
           <Viewport image={result.image} view={view} onChange={setView} label={compare ? t("viewer.overlay") : label} height={height} onImageClick={onImageClick}>
             {layer}
@@ -341,7 +341,7 @@ export function ImageViewer({
                   key={f.name}
                   type="button"
                   onClick={() => onSelect(f.name)}
-                  className={`chip py-1 transition ${f.name === active?.name ? "bg-ink text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+                  className={`chip py-1 transition ${f.name === active?.name ? "bg-ink text-canvas" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
                 >
                   {finding(f.name)}
                 </button>

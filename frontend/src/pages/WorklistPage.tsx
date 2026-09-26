@@ -3,7 +3,7 @@ import { ChevronRight, FolderOpen, LoaderCircle, Search, ShieldAlert, ShieldChec
 import { useEffect, useMemo, useState } from "react";
 
 import { BatchUpload } from "../components/BatchUpload";
-import { EmptyState, PageHeader, PriorityBadge, Segmented, Skeleton, StatusChip, Waiting } from "../components/ui";
+import { CaseThumb, EmptyState, PageHeader, PriorityBadge, Segmented, Skeleton, StatusChip, Waiting } from "../components/ui";
 import { useI18n } from "../i18n";
 import { api, type CaseQuery, type CaseSummary, type Priority } from "../lib/api";
 import { caseNumber } from "../lib/format";
@@ -141,18 +141,17 @@ export function WorklistPage() {
                   >
                     <td className="px-5 py-3 whitespace-nowrap">
                       <div className="flex items-center gap-3">
-                        {item.thumbnail ? (
-                          <img src={item.thumbnail} alt="" className="size-11 shrink-0 rounded-xl bg-slate-900 object-cover" />
-                        ) : (
-                          <div className="size-11 shrink-0 rounded-xl bg-slate-100" />
-                        )}
+                        <CaseThumb thumbnail={item.thumbnail} />
                         <div>
-                          <Link href={`/cases/${item.id}`} className="font-bold text-ink">{caseNumber(item.id)}</Link>
+                          <Link href={`/cases/${item.id}`} className="font-semibold text-ink">{caseNumber(item.id)}</Link>
                           <div className="font-mono text-xs whitespace-nowrap text-slate-500">{item.patient.pseudonym}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-5 py-3 whitespace-nowrap text-slate-600">{study(item)}</td>
+                    <td className="px-5 py-3 text-slate-600">
+                      <div className="whitespace-nowrap">{study(item)}</div>
+                      {item.chief_complaint && <div className="max-w-56 truncate text-xs text-slate-500">{item.chief_complaint}</div>}
+                    </td>
                     <td className="px-5 py-3">
                       {item.status === "ai_ready" || item.status === "reviewed" ? (
                         <div className="flex flex-col items-start gap-1">

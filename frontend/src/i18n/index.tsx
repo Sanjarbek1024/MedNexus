@@ -87,7 +87,9 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       return typeof found === "string" ? interpolate(found, params) : key;
     };
     const locale = LOCALES[language];
-    const study = (s: StudyType) => [s.modality, s.region, s.view].map((id) => taxonomyLabel(language, id)).join(" · ");
+    // A case without an image is named by its clinical assessment, not by a study type.
+    const study = (s: StudyType) =>
+      s.modality === "clinical" ? t("intake.clinicalStudy") : [s.modality, s.region, s.view].map((id) => taxonomyLabel(language, id)).join(" · ");
     return {
       language,
       setLanguage,

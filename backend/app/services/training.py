@@ -12,7 +12,7 @@ from collections import defaultdict
 from sqlmodel import Session, col, func, select
 
 from app.db.audit import as_utc
-from app.db.models import Case, CaseStatus, TrainingAttempt, User
+from app.db.models import CLINICAL, Case, CaseStatus, TrainingAttempt, User
 from app.schemas import (
     AIMistake,
     LabelOutcome,
@@ -31,7 +31,7 @@ class TrainingCaseNotFoundError(LookupError):
 
 def _pool(session: Session) -> list[int]:
     return list(session.exec(
-        select(Case.id).where(Case.status == CaseStatus.REVIEWED).order_by(Case.id)
+        select(Case.id).where(Case.status == CaseStatus.REVIEWED, Case.modality != CLINICAL).order_by(Case.id)
     ).all())
 
 

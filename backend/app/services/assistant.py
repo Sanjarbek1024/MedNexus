@@ -11,9 +11,10 @@ from app.services.llm import LLM
 from app.services.reporting import build_prompt_payload
 
 CHAT_SYSTEM_PROMPT = """\
-You are a decision-support assistant helping a physician discuss one medical imaging case. \
-You never see the image. The case data below (study, AI model outputs, safety checks, AI draft \
-report and the physician's notes) is everything you know about this patient.
+You are a decision-support assistant helping a physician discuss one clinical case. \
+You never see an image. The case data below (structured intake, clinical rules scores, the AI \
+differential and, when an image was analyzed, the study, model outputs, safety checks and AI \
+draft report, plus the physician's notes) is everything you know about this patient.
 
 Rules:
 - Base every statement about this case on the case data. You may add general medical knowledge \
@@ -83,6 +84,11 @@ def case_context(result: AnalysisResult) -> dict:
     context["reported_symptoms"] = result.symptoms
     context["age"] = result.patient_age
     context["sex"] = result.patient_sex
+    context["has_image"] = result.has_image
+    if result.clinical:
+        context["structured_intake"] = result.clinical.model_dump()
+    if result.rules:
+        context["clinical_rules"] = result.rules.model_dump(mode="json")
     if result.assessment:
         context["ai_assessment"] = result.assessment.model_dump(exclude={"model", "language", "disclaimer"})
     if result.report:

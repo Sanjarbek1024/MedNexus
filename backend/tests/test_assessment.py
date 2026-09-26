@@ -13,6 +13,7 @@ from app.services.assessment import (
     DOCTOR_PROMPT,
     MAX_OUTPUT_TOKENS,
     MAX_PROBABILITY,
+    OBSERVE_TOKENS,
     PATIENT_PROMPT,
     URGENCY_TEXT,
     _clean,
@@ -21,6 +22,7 @@ from app.services.assessment import (
     written_language,
 )
 from app.services.hospitals import recommend, specialty_for
+from app.services.terms import glossary
 from tests.conftest import upload
 
 ANSWER = {
@@ -171,24 +173,6 @@ def test_partner_hospitals_come_first_and_emergency_when_urgent() -> None:
     assert specialty_for(["Enlarged cardiomediastinum"]) == "cardiology"
 
 
-def test_users_get_a_plain_language_assessment(make_user: Callable[[str], TestClient], sample: Callable[[str], Path]) -> None:
-    person = make_user(Role.USER)
-    fake = FakeVision(ANSWER)
-    body = with_vision(fake, lambda: upload(
-        person, sample("chest_pa_pneumonia.jpg"), symptoms="Cough and fever", age="40", sex="female"
-    ).json())
-
-    assessment = body["assessment"]
-    assert assessment["audience"] == "patient" and assessment["differential"][0]["name"] == "Pneumonia"
-    assert body["hospitals"][0]["partner"] and "pulmonology" in body["hospitals"][1]["specialties"]
-
-    request = fake.calls[0]
-    system, content = request["messages"][0]["content"], request["messages"][1]["content"]
-    assert "ordinary person" in system and "English" in system
-    assert content[1]["image_url"]["url"].startswith("data:image/jpeg;base64,")  # the model sees the image
-    assert "Cough and fever" in content[0]["text"] and '"Consolidation"' in content[0]["text"]
-
-
 def test_doctors_get_a_clinical_assessment_and_can_regenerate(client: TestClient, sample: Callable[[str], Path]) -> None:
     fake = FakeVision(ANSWER)
     case_id = with_vision(fake, lambda: upload(client, sample("chest_pa_pneumonia.jpg")).json())["case_id"]
@@ -206,3 +190,118 @@ def test_assessment_failure_keeps_the_case_usable(client: TestClient, sample: Ca
     body = with_vision(FakeVision(RuntimeError("upstream down")), lambda: upload(client, sample("chest_pa_pneumonia.jpg")).json())
     assert body["status"] == "ai_ready" and body["findings"]
     assert body["assessment"] is None and body["assessment_error"]
+
+
+READING = {
+    "observations": ["Patchy opacity in the right upper zone"],
+    "quality": "Diagnostic quality.",
+    "agreement": "Agrees with the consolidation finding.",
+}
+RICH = {
+    **ANSWER,
+    "differential": [
+        {
+            "name": "Tuberculosis", "probability": 45, "reasoning": "Upper-zone opacity with night sweats.",
+            "evidence_for": ["Image: upper-zone opacity", "Symptom: night sweats", "Symptom: weight loss", "Model: extra"],
+            "evidence_against": ["Model: no cavity flagged"],
+            "confirm_with": ["Sputum GeneXpert", "Chest CT", "Bronchoscopy"],
+            "cannot_miss": True,
+        },
+        {"name": "Pneumonia", "probability": 35, "reasoning": "Fever and consolidation.",
+         "evidence_for": ["Model: Consolidation 0.80 (high)"], "cannot_miss": "false"},
+    ],
+    "red_flags": ["Weight loss with a cough for three weeks"],
+    "watch_out": ["A single-model nodule finding that the symptoms do not explain"],
+    "mismatch": "",
+}
+
+
+class FakeSequence(FakeVision):
+    """Answers each request with the next answer in turn."""
+
+    def __init__(self, answers: list[dict | Exception]) -> None:
+        super().__init__(answers[0])
+        self.answers = list(answers)
+
+    def create(self, **kwargs: object):
+        self.answer = self.answers.pop(0) if len(self.answers) > 1 else self.answers[0]
+        return super().create(**kwargs)
+
+
+class FakeReasoner(FakeVision):
+    """The text model's Groq client: answers the assessment's reasoning request only."""
+
+    def create(self, **kwargs: object):
+        if "Clinical reasoning rules" not in kwargs["messages"][0]["content"]:
+            raise RuntimeError("the report writer is not under test here")
+        return super().create(**kwargs)
+
+
+def with_models(vision_fake: FakeVision, reasoner_fake: FakeVision, action: Callable[[], object]) -> object:
+    vision, reasoner = app.state.service.vision, app.state.service.writer.llm
+    vision._client, reasoner._client = vision_fake, reasoner_fake
+    try:
+        return action()
+    finally:
+        vision._client = reasoner._client = None
+
+
+def test_differential_items_carry_evidence_and_cannot_miss_flags() -> None:
+    assessment = _clean(RICH, "doctor", "en", "vision + reasoner")
+    tb, pneumonia = assessment.differential
+    assert tb.cannot_miss and len(tb.evidence_for) == 3 and tb.confirm_with == ["Sputum GeneXpert", "Chest CT"]
+    assert tb.evidence_against == ["Model: no cavity flagged"]
+    assert pneumonia.cannot_miss is False  # only a real true flags an item
+    assert assessment.red_flags and assessment.watch_out and assessment.mismatch == ""
+
+
+def test_finding_names_are_given_in_the_answer_language() -> None:
+    assert glossary(["Consolidation", "Pituitary tumor", "Unknown"], "uz") == {
+        "Consolidation": "Konsolidatsiya", "Pituitary tumor": "Gipofiz o‘smasi",
+    }
+    assert glossary(["Consolidation"], "en") == {}
+
+
+def test_the_vision_model_reads_the_image_and_the_reasoner_builds_the_differential(
+    client: TestClient, sample: Callable[[str], Path]
+) -> None:
+    vision, reasoner = FakeVision(READING), FakeReasoner(RICH)
+    body = with_models(vision, reasoner, lambda: upload(
+        client, sample("chest_pa_pneumonia.jpg"), symptoms="Cough for three weeks, night sweats"
+    ).json())
+
+    assessment = body["assessment"]
+    assert assessment["model"] == f"{app.state.service.vision.model} + {app.state.service.writer.llm.model}"
+    assert assessment["differential"][0]["cannot_miss"] and assessment["differential"][0]["evidence_for"]
+    assert assessment["red_flags"] == RICH["red_flags"]
+
+    look = vision.calls[0]  # stage 1: the vision model sees the image and does not diagnose
+    assert "Describe only what is visible" in look["messages"][0]["content"]
+    assert look["messages"][1]["content"][1]["image_url"]["url"].startswith("data:image/jpeg;base64,")
+    assert look["max_completion_tokens"] == OBSERVE_TOKENS
+
+    think = next(c for c in reasoner.calls if "Clinical reasoning rules" in c["messages"][0]["content"])
+    payload = json.loads(think["messages"][1]["content"])  # stage 2: text only, never the image
+    assert payload["visual_reading"] == READING and "night sweats" in payload["symptoms"]
+    assert any(f["name"] == "Consolidation" for f in payload["findings"])
+    assert "tuberculosis" in think["messages"][0]["content"].lower() and "data:image" not in think["messages"][1]["content"]
+
+
+def test_a_failed_reasoning_stage_falls_back_to_the_vision_model(client: TestClient, sample: Callable[[str], Path]) -> None:
+    vision, reasoner = FakeSequence([READING, ANSWER]), FakeReasoner(RuntimeError("rate limited"))
+    body = with_models(vision, reasoner, lambda: upload(client, sample("chest_pa_pneumonia.jpg")).json())
+    assert body["assessment"]["model"] == app.state.service.vision.model
+    assert body["assessment"]["differential"][0]["name"] == "Pneumonia"
+    assert len(vision.calls) == 2  # the reading, then the one-call assessment
+
+
+def test_malformed_model_output_is_tolerated() -> None:
+    raw = {
+        **ANSWER,
+        "differential": ["Pneumonia", {"name": "Pneumonia", "probability": "40%"}],
+        "causes": "Smoking",
+        "next_steps": None,
+    }
+    assessment = _clean(raw, "doctor", "en", "vision")
+    assert [(d.name, d.probability) for d in assessment.differential] == [("Pneumonia", 40)]
+    assert assessment.causes == [] and assessment.next_steps == []

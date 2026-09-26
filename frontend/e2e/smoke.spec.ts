@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 
 const SAMPLE = fileURLToPath(new URL("../../samples/chest_pa_pneumonia.jpg", import.meta.url));
 
-test("doctor: sign in → upload → analyze → continue in chat → confirm → worklist", async ({ page }) => {
+test("doctor: sign in → intake + image → analyze → continue in chat → confirm → worklist", async ({ page }) => {
   const email = `e2e-${Date.now()}@example.org`;
   const password = "Smoke-test-2026";
 
@@ -14,10 +14,7 @@ test("doctor: sign in → upload → analyze → continue in chat → confirm �
   await page.getByLabel("Full name").fill("Dr. Smoke Test");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
-  const doctorRole = page.getByRole("button", { name: /^Doctor/ });
-  await doctorRole.click();
-  await expect(doctorRole).toHaveAttribute("aria-pressed", "true");
-  await expect(doctorRole).toContainText("Subscription: free for now");
+  await expect(page.getByText("Subscription: free for now")).toBeVisible();  // physicians only
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(page).toHaveURL(/\/dashboard/);
 
@@ -29,13 +26,16 @@ test("doctor: sign in → upload → analyze → continue in chat → confirm �
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard/);
 
-  // Upload and analyze a chest X-ray; progress streams until the case opens.
+  // Clinical intake first; the chest X-ray is the optional last step. Progress streams until the case opens.
   await page.goto("/analyze");
-  await page.locator('input[type="file"]').setInputFiles(SAMPLE);
-  await page.getByLabel("Symptoms").fill("Cough for 3 days, fever 38°");
   await page.getByRole("spinbutton", { name: "Age" }).fill("54");
   await page.getByLabel("Sex").selectOption("male");
-  await page.getByRole("button", { name: "Analyze", exact: true }).click();
+  await page.getByLabel("Chief complaint").fill("Cough and fever");
+  await page.getByLabel("History of present illness").fill("Cough for 3 days, fever 38°");
+  await page.getByRole("button", { name: "Cough", exact: true }).click();
+  await page.getByRole("button", { name: /Imaging \(optional\)/ }).click();
+  await page.locator('input[type="file"]').setInputFiles(SAMPLE);
+  await page.getByRole("button", { name: "Analyze with image" }).click();
   await expect(page.getByText("Running the safety pipeline")).toBeVisible();
   await expect(page).toHaveURL(/\/cases\/\d+$/, { timeout: 120_000 });
   const caseId = page.url().split("/").pop();
@@ -58,6 +58,8 @@ test("doctor: sign in → upload → analyze → continue in chat → confirm �
   const editor = page.getByRole("dialog", { name: "Structured report" });
   await expect(editor.getByText("Consolidation").first()).toBeVisible();
   await editor.getByRole("textbox", { name: /Impression/ }).fill("Right upper lobe consolidation, consistent with pneumonia.");
+  // Agreeing with every AI finding (and no AI differential without an LLM) raises no pre-sign warning.
+  await expect(editor.getByText("Check before signing")).toHaveCount(0);
   await editor.getByRole("button", { name: "Sign & finalize" }).click();
   await expect(page.getByText("Report signed").first()).toBeVisible();
   await expect(page.getByText("Reviewed", { exact: true }).first()).toBeVisible();
@@ -69,25 +71,32 @@ test("doctor: sign in → upload → analyze → continue in chat → confirm �
   await expect(row).toContainText("Reviewed");
 });
 
-test("patient: sign up → my scans, doctor-only pages redirect", async ({ page }) => {
-  const email = `e2e-user-${Date.now()}@example.org`;
+test("doctor: symptoms-only case → rules engine → add imaging later", async ({ page }) => {
+  const email = `e2e-clinical-${Date.now()}@example.org`;
 
   await page.goto("/signup");
   await page.getByRole("button", { name: "en", exact: true }).click();
-  await page.getByLabel("Full name").fill("Smoke Patient");
+  await page.getByLabel("Full name").fill("Dr. Intake Test");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill("Smoke-test-2026");
-  await expect(page.getByRole("button", { name: /^Patient/ })).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Create account" }).click();
+  await expect(page).toHaveURL(/\/dashboard/);
+  await expect(page.getByRole("link", { name: "My scans" })).toHaveCount(0);
 
-  await expect(page).toHaveURL(/\/my$/);
-  await expect(page.getByText("No scans yet")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Worklist" })).toHaveCount(0);
-
-  await page.goto("/dashboard");
-  await expect(page).toHaveURL(/\/my$/);
-
+  // No image: the complaint, symptoms and vitals are enough for a case.
   await page.goto("/analyze");
-  await expect(page.getByRole("radio", { name: /Chest X-ray \/ fluorography/ })).toHaveAttribute("aria-checked", "true");
-  await expect(page.getByLabel("Symptoms")).toBeVisible();
+  await page.getByRole("spinbutton", { name: "Age" }).fill("70");
+  await page.getByLabel("Chief complaint").fill("Fever and confusion");
+  await page.getByRole("button", { name: "Confusion", exact: true }).click();
+  await page.getByRole("spinbutton", { name: "Respiratory rate" }).fill("28");
+  await page.getByRole("spinbutton", { name: "SpO₂" }).fill("89");
+  // The live triage runs the deterministic rules while typing.
+  await expect(page.getByText("NEWS2").first()).toBeVisible();
+  await page.getByRole("button", { name: "Build differential" }).click();
+
+  await expect(page).toHaveURL(/\/cases\/\d+$/, { timeout: 60_000 });
+  await expect(page.getByRole("heading", { name: "Clinical rules engine" })).toBeVisible();
+  await expect(page.getByText("Fever and confusion").first()).toBeVisible();
+  await expect(page.getByText("Urgent").first()).toBeVisible();  // red flags raise triage without any model
+  await expect(page.getByRole("heading", { name: "Add imaging to refine the differential" })).toBeVisible();
 });

@@ -11,7 +11,7 @@ import { useToast } from "../lib/toast";
 function Section({ icon: Icon, title, children, hint }: { icon: typeof UserRound; title: string; hint?: string; children: React.ReactNode }) {
   return (
     <section className="card p-6">
-      <h2 className="flex items-center gap-2 font-bold text-ink"><Icon className="size-5 text-emerald-600" /> {title}</h2>
+      <h2 className="flex items-center gap-2 font-semibold text-ink"><Icon className="size-5 text-emerald-600" /> {title}</h2>
       {hint && <p className="mt-1 text-sm text-slate-500">{hint}</p>}
       <div className="mt-5">{children}</div>
     </section>

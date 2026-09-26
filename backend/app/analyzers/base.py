@@ -25,6 +25,7 @@ from app.imaging import Box, StudyImage
 class Stage(StrEnum):
     """Pipeline stages, in execution order. They drive the progress indicator."""
 
+    CLINICAL = "clinical"  # clinical rules engine (always first)
     QUALITY = "quality"
     MODELS = "models"
     EXPLAINABILITY = "explainability"

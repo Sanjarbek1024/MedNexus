@@ -33,7 +33,9 @@ class LLM:
             raise LLMUnavailableError("GROQ_API_KEY is not configured")
         return self._client
 
-    def json_completion(self, system: str, payload: dict, max_tokens: int = 2048) -> str:
+    def json_completion(
+        self, system: str, payload: dict, max_tokens: int = 2048, reasoning_effort: str | None = None
+    ) -> str:
         completion = self._require_client().chat.completions.create(
             model=self.model,
             messages=[
@@ -43,7 +45,7 @@ class LLM:
             response_format={"type": "json_object"},
             temperature=0.2,
             max_completion_tokens=max_tokens,
-            **self._options(),
+            **({**self._options(), "reasoning_effort": reasoning_effort} if reasoning_effort else self._options()),
         )
         return completion.choices[0].message.content or ""
 

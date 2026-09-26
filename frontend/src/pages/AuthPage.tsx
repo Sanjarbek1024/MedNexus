@@ -1,8 +1,8 @@
 import { motion } from "framer-motion";
-import { CircleAlert, HeartPulse, KeyRound, LoaderCircle, Stethoscope } from "lucide-react";
+import { Check, CircleAlert, KeyRound, LoaderCircle, Stethoscope } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
-import { LanguageSwitch, Logo } from "../components/AppShell";
+import { LanguageSwitch, Logo, ThemeToggle, Wordmark } from "../components/Brand";
 import { Disclaimer } from "../components/Disclaimer";
 import { useI18n } from "../i18n";
 import { ApiError, type Role } from "../lib/api";
@@ -11,15 +11,7 @@ import { Link } from "../lib/router";
 
 // Accounts created by scripts/seed_demo.py (shown so judges and testers can sign in quickly).
 const DEMO_PASSWORD = "MedNexus-Demo-2026";
-const DEMO_ACCOUNTS: { email: string; role: Role }[] = [
-  { email: "user@mednexus.uz", role: "user" },
-  { email: "doctor@mednexus.uz", role: "doctor" },
-];
-
-const ROLE_CHOICES = [
-  { id: "user", icon: HeartPulse, title: "auth.roleUser", text: "auth.roleUserText" },
-  { id: "doctor", icon: Stethoscope, title: "auth.roleDoctor", text: "auth.roleDoctorText" },
-] as const;
+const DEMO_ACCOUNTS: { email: string; role: Role }[] = [{ email: "doctor@mednexus.uz", role: "doctor" }];
 
 export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
   const { t } = useI18n();
@@ -27,7 +19,6 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [role, setRole] = useState<Role>("user");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const signup = mode === "signup";
@@ -37,7 +28,7 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
     setBusy(true);
     setError(null);
     try {
-      if (signup) await signUp({ email, full_name: fullName, password, role });
+      if (signup) await signUp({ email, full_name: fullName, password, role: "doctor" });
       else await signIn(email, password);
     } catch (e) {
       const err = e as ApiError;
@@ -53,9 +44,12 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
         <div className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
             <Logo />
-            <span className="text-[15px] font-extrabold tracking-tight text-ink">MedNexus</span>
+            <Wordmark />
           </Link>
-          <LanguageSwitch />
+          <div className="flex items-center gap-2">
+            <LanguageSwitch />
+            <ThemeToggle />
+          </div>
         </div>
         <motion.form
           key={mode}
@@ -64,7 +58,7 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
           animate={{ opacity: 1, y: 0 }}
           className="mx-auto my-auto w-full max-w-sm py-10"
         >
-          <h1 className="text-3xl font-extrabold tracking-tight text-ink">{signup ? t("auth.createTitle") : t("auth.welcome")}</h1>
+          <h1 className="text-[32px] font-semibold tracking-[-0.03em] text-ink">{signup ? t("auth.createTitle") : t("auth.welcome")}</h1>
           <p className="mt-2 text-sm text-slate-500">{signup ? t("auth.createSubtitle") : t("auth.signInSubtitle")}</p>
 
           <div className="mt-8 space-y-4">
@@ -92,29 +86,12 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
               {signup && <span className="mt-1 block text-xs text-slate-400">{t("auth.passwordRules")}</span>}
             </label>
             {signup && (
-              <div>
-                <span className="eyebrow">{t("auth.role")}</span>
-                <div className="mt-1.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {ROLE_CHOICES.map(({ id, icon: Icon, title, text }) => (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => setRole(id)}
-                      aria-pressed={role === id}
-                      className={`flex flex-col gap-1.5 rounded-2xl border p-3 text-left transition ${
-                        role === id ? "border-emerald-400 bg-emerald-50 ring-4 ring-emerald-100" : "border-slate-200 bg-white hover:border-slate-300"
-                      }`}
-                    >
-                      <span className="flex items-center gap-2 text-sm font-bold text-ink">
-                        <Icon className={`size-4 ${role === id ? "text-emerald-600" : "text-slate-400"}`} /> {t(title)}
-                      </span>
-                      <span className="text-xs leading-snug text-slate-500">{t(text)}</span>
-                      {id === "doctor" && (
-                        <span className="chip mt-0.5 w-fit bg-emerald-100/70 text-[10px] text-emerald-800">{t("auth.subscriptionFree")}</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
+              <div className="flex items-start gap-2.5 rounded-xl border border-line bg-raised px-3 py-2.5 text-xs text-slate-600">
+                <Stethoscope className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+                <span>
+                  <span className="block font-semibold text-ink">{t("auth.roleDoctor")}</span>
+                  {t("auth.subscriptionFree")}
+                </span>
               </div>
             )}
           </div>
@@ -125,7 +102,7 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
             </div>
           )}
 
-          <button type="submit" disabled={busy} className="btn-primary mt-6 w-full rounded-xl py-3">
+          <button type="submit" disabled={busy} className="btn-primary mt-6 h-11 w-full rounded-xl">
             {busy && <LoaderCircle className="size-4 animate-spin" />} {signup ? t("common.signUp") : t("common.signIn")}
           </button>
           <p className="mt-5 text-center text-sm text-slate-500">
@@ -136,8 +113,8 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
           </p>
 
           {!signup && (
-            <div className="mt-8 rounded-2xl bg-white/70 p-4 ring-1 ring-slate-200">
-              <div className="flex items-center gap-2 text-sm font-bold text-ink">
+            <div className="mt-8 rounded-2xl border border-dashed border-slate-300 bg-raised p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-ink">
                 <KeyRound className="size-4 text-emerald-600" /> {t("auth.demoTitle")}
               </div>
               <p className="mt-1 text-xs text-slate-500">{t("auth.demoHint", { password: DEMO_PASSWORD })}</p>
@@ -150,7 +127,7 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
                       setEmail(account.email);
                       setPassword(DEMO_PASSWORD);
                     }}
-                    className="flex items-center justify-between rounded-xl px-3 py-2 text-left text-sm hover:bg-emerald-50"
+                    className="flex items-center justify-between rounded-xl border border-transparent px-3 py-2 text-left text-sm transition hover:border-line hover:bg-surface"
                   >
                     <span className="font-mono text-xs text-slate-600">{account.email}</span>
                     <span className="chip bg-slate-100 text-slate-600">{t(`roles.${account.role}`)}</span>
@@ -163,19 +140,44 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
         <Disclaimer className="mx-auto w-fit" />
       </div>
 
-      <div className="relative hidden overflow-hidden bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 lg:block">
-        <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)", backgroundSize: "28px 28px" }} />
-        <div className="relative flex h-full flex-col justify-end p-14 text-white">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-            <div className="text-4xl leading-tight font-extrabold tracking-tight">{t("landing.title")}</div>
-            <div className="mt-8 grid gap-3">
-              {(t("landing.safety.0.title") + "|" + t("landing.safety.3.title") + "|" + t("landing.safety.4.title")).split("|").map((line) => (
-                <div key={line} className="flex items-center gap-3 rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/15 backdrop-blur">
-                  <span className="size-2 rounded-full bg-emerald-200" /> <span className="font-semibold">{line}</span>
-                </div>
+      <div data-theme="dark" className="relative hidden overflow-hidden bg-[#07110b] text-ink lg:block">
+        <div className="grid-lines absolute inset-0 opacity-80 [mask-image:radial-gradient(ellipse_at_top_right,black,transparent_75%)]" />
+        <div className="absolute -top-32 -right-32 size-[30rem] rounded-full bg-[radial-gradient(closest-side,rgba(92,255,99,0.22),transparent)]" />
+        <div className="relative flex h-full flex-col justify-between p-14">
+          <div className="flex items-center gap-3">
+            <Logo className="size-11" />
+            <div className="font-mono text-[11px] leading-relaxed text-slate-500">
+              <div className="text-sm font-semibold text-ink">MedNexus</div>
+              {t("shell.research")}
+            </div>
+          </div>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.6 }}>
+            <div className="text-[40px] leading-[1.08] font-semibold tracking-[-0.035em] text-balance">
+              {t("landing.titleLead") && <>{t("landing.titleLead")} </>}
+              <span className="text-brand-gradient">{t("landing.titleAccent")}</span> {t("landing.titleTail")}
+            </div>
+            <div className="mt-10 grid gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10">
+              {[0, 1, 2, 4].map((i, n) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.4 + n * 0.12 }}
+                  className="flex items-center gap-4 bg-[#07110b] px-5 py-4"
+                >
+                  <span className="font-mono text-xs text-slate-400">{String(i + 1).padStart(2, "0")}</span>
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold">{t(`landing.safety.${i}.title`)}</div>
+                    <div className="truncate text-xs text-slate-500">{t(`landing.safety.${i}.text`)}</div>
+                  </div>
+                  <span className="ml-auto flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-brand ring-1 ring-emerald-200">
+                    <Check className="size-3" />
+                  </span>
+                </motion.div>
               ))}
             </div>
           </motion.div>
+          <div className="font-mono text-[11px] text-slate-500">{t("landing.footerNote")}</div>
         </div>
       </div>
     </div>

@@ -1,35 +1,44 @@
 # MedNexus
 
-Medical-image AI for two audiences: people get a calm, plain-language explanation of their own X-ray, fluorography or MRI together with their symptoms, and doctors get a triaged worklist, explainable findings and report drafting. Every answer is an estimate; a doctor makes every decision.
+AI differential diagnosis for physicians. The doctor enters the complaint, symptoms, vital signs, history, examination and labs; a deterministic clinical rules engine scores the patient, an AI reasoner builds the differential with evidence per source, and a safety critic checks it. An X-ray or MRI is optional: it can be added at intake or later, and the differential is rebuilt with the image. Every answer is an estimate; the doctor makes every decision.
 
 <!-- Screenshots: add images to docs/screenshots/ and reference them here. -->
 > **Screenshots:** `docs/screenshots/landing.png` · `worklist.png` · `case.png` · `compare.png` · `training.png`
 
 ## Features
 
-**For people (role *User*)**
-- **Image + symptoms.** Upload a chest X-ray / fluorography, an arm or leg X-ray, or a brain MRI, and describe the symptoms (plus optional age and sex).
-- **Plain-language result.**
-  - A vision-language model reads the image together with the specialist model outputs and the symptoms. It returns a calm summary, what the image shows and a differential with estimated likelihoods.
-  - No likelihood is ever above 90 %, and together they never exceed 100 %; every answer says it is not a diagnosis.
-  - It also lists possible causes, next steps, questions to ask the doctor and how soon to see one.
-- **Hospital recommendations.** Partner hospitals first (the referral business model), then the national specialized center for the relevant specialty, family care and emergency care.
-- **Continue in chat.** Follow-up questions about the result, answered in plain words, with danger signs routed to emergency care (103).
+MedNexus is a physician tool (role *Doctor*, monthly subscription, free during the pilot).
 
-**For doctors (role *Doctor*, monthly subscription, free during the pilot)**
-- **Smart worklist.** Studies are ordered by AI urgency (for example a high-confidence pneumothorax, effusion or fracture comes first), with the time in queue always visible. Filters, search and batch upload run in the background.
-- **Analysis.** DICOM, PNG and JPEG. Chest X-ray uses a DenseNet-121 + ResNet-50 ensemble with per-model agreement. Extremity X-ray has a fracture detector with bounding boxes. Brain MRI has a tumor classifier. Other study types (CT, MRI outside the head) are listed as *Coming soon* until a validated model covers them. Pipeline progress is shown live.
-- **AI differential.** The same image + symptoms assessment in clinical language, next to the model findings.
+**Differential diagnosis first**
+- **Structured intake.** Chief complaint, onset, duration and severity; a symptom checklist grouped by system (red-flag symptoms are marked); vital signs (temperature, heart rate, respiratory rate, blood pressure, SpO₂, oxygen, ACVPU consciousness); history, medications, allergies and smoking; examination and laboratory results.
+- **Live triage.** While the intake is typed, the rules engine recalculates NEWS2, qSOFA, CRB-65 and the shock index and lists red flags. No model is involved.
+- **Symptoms-only differential.** Without an image the clinical reasoner (gpt-oss-120b) builds 3-5 diagnoses, each with evidence for and against tagged by source (Symptom, Vitals, Exam, Lab, History), confirmatory tests and a *cannot-miss* flag. A second LLM pass, the safety critic, adds dangerous diagnoses the draft missed and notes ignored red flags.
+- **Imaging, optional and later.** Add a chest X-ray, limb X-ray or brain MRI at intake or from the case page; the imaging models run and the differential is rebuilt from the image and the clinical picture together.
+- **Transparent AI architecture.** Every case shows the steps that actually ran (rules → imaging → vision reading → reasoner → critic → guardrails) with their models and timings.
+
+**Hybrid AI architecture**
+
+| Layer | What it does |
+|---|---|
+| Clinical rules engine | NEWS2, qSOFA, CRB-65, shock index and red flags from their published definitions. Drives triage and sets an urgency floor the models cannot lower. |
+| Imaging models (optional) | Safety gates, a DenseNet-121 + ResNet-50 chest ensemble, a YOLOv7 fracture detector, a ViT-B/16 brain tumor classifier, Grad-CAM. |
+| Vision-language reading | An open-weights VLM describes what is visible on the image (no diagnosis). |
+| Clinical reasoner | gpt-oss-120b builds the differential from the intake, the rules output and, when present, the image reading and model outputs. |
+| Safety critic | A second gpt-oss-120b pass looks for missed cannot-miss diagnoses and ignored red flags. |
+| Guardrails | Estimates capped at 90 % (sum ≤ 100 %), urgency floor, language check, disclaimer written by the app. |
+
+**Workspace**
+- **Smart worklist.** Cases are ordered by urgency (rules engine and imaging triage, whichever is higher), with the time in queue always visible. Filters, search and batch image upload run in the background.
 - **Explainability.** Grad-CAM heatmaps, lung and heart contours, an estimated cardiothoracic ratio, and detection boxes. The viewer has zoom/pan, side-by-side view and keyboard shortcuts.
-- **Prior comparison.** Two studies of one patient in synced viewers, a findings delta (improved / stable / worsened) and an LLM-drafted interval summary.
-- **Report editor.** A structured report (Findings / Impression / Recommendations) pre-filled from the AI draft. The physician agrees or disagrees with each finding, adds findings the AI missed, then signs and finalizes, and can export to PDF.
-- **Continue in chat.** Streaming Q&A about the case, grounded in its model outputs, safety checks and report.
+- **Prior comparison.** Two imaging studies of one patient in synced viewers, a findings delta (improved / stable / worsened) and an LLM-drafted interval summary.
+- **Report editor.** A structured report (Findings / Impression / Recommendations) pre-filled from the AI draft. The physician agrees or disagrees with each finding, then signs and finalizes, and can export to PDF.
+- **Continue in chat.** Streaming Q&A about the case, grounded in the intake, the rules output, the differential and any model outputs.
 
 **Safety layer**
 - **Gates.** Image quality, DICOM header consistency, out-of-distribution (autoencoder) and anatomy / body-region gates. A failed gate returns *Image rejected* with the reason and no findings.
 - **Honest scores.** Scores are model outputs, not probabilities. Confidence thresholds are configurable, and findings the models disagree on are marked *Uncertain – physician review required*.
 - **Grounded language.** The report LLM never sees the image: findings it mentions that the models did not produce are removed and reported. The vision-language assessment does see the image; its likelihoods are capped, labelled as estimates and always shown with a fixed disclaimer.
-- **Human in the loop.** Every result is a draft until a doctor signs it; people see estimates and a disclaimer, never a diagnosis.
+- **Human in the loop.** Every result is a draft until a doctor signs it; the differential is labelled as estimates, never a diagnosis.
 - **Monitoring.** The Safety monitor shows agreement and override rates per pathology over time, rejected images, low-confidence and model-disagreement rates.
 
 **Education.** Training mode offers blind reads of signed cases scored against the signing doctor's decision, per-pathology progress, and a *When the AI was wrong* collection.
@@ -61,12 +70,11 @@ On Linux or macOS, `make setup samples seed dev` does the same. Model weights (~
 
 ### Demo accounts
 
-Password for both: `MedNexus-Demo-2026`
+Password: `MedNexus-Demo-2026`
 
 | Email | Role |
 |---|---|
-| `user@mednexus.uz` | User: own scans with symptoms, plain-language results, hospitals, chat |
-| `doctor@mednexus.uz` | Doctor: dashboard, worklist, review and sign-off, compare, training, Safety monitor |
+| `doctor@mednexus.uz` | Doctor: new case (intake → differential), dashboard, worklist, review and sign-off, compare, training, Safety monitor |
 
 ### Tests
 
@@ -139,7 +147,7 @@ Sample images: see [samples/SOURCES.md](samples/SOURCES.md) (CC0, public domain,
   - Signing out, or changing a password or role, revokes all refresh tokens.
 - **Abuse protection.** Sign-in and analysis are rate-limited, and an account locks after repeated failed sign-ins. The rate limiter is in-memory, one API process; use a shared store if you scale out.
 - **Access control.**
-  - Roles are User and Doctor, enforced on every endpoint (review, reports, compare, training and statistics are doctor-only).
+  - Only physicians can register; every endpoint requires a signed-in doctor.
   - Everyone sees only their own cases.
   - The training pool contains signed, pseudonymous cases.
 - **Uploads.**

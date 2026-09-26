@@ -86,7 +86,7 @@ class RegisterRequest(BaseModel):
     email: str = Field(max_length=254)
     full_name: str = Field(min_length=2, max_length=120)
     password: str = Field(max_length=128)
-    role: Literal[Role.USER, Role.DOCTOR] = Role.USER
+    role: Literal[Role.DOCTOR] = Role.DOCTOR  # MedNexus is a tool for physicians only
     language: Literal["uz", "en", "ru"] = "uz"
 
     @field_validator("email")
@@ -262,10 +262,84 @@ class PatientRef(BaseModel):
     pseudonym: str
 
 
+class Vitals(BaseModel):
+    temperature: float | None = Field(default=None, ge=25, le=45, description="°C")
+    heart_rate: int | None = Field(default=None, ge=20, le=250, description="beats per minute")
+    resp_rate: int | None = Field(default=None, ge=4, le=80, description="breaths per minute")
+    systolic: int | None = Field(default=None, ge=40, le=300, description="mmHg")
+    diastolic: int | None = Field(default=None, ge=20, le=200, description="mmHg")
+    spo2: int | None = Field(default=None, ge=50, le=100, description="% on the stated oxygen")
+    on_oxygen: bool = False
+    consciousness: Literal["alert", "confused", "voice", "pain", "unresponsive"] = "alert"
+
+
+class ClinicalData(BaseModel):
+    """Structured intake the physician fills in; every field is optional except the complaint."""
+
+    chief_complaint: str = Field(default="", max_length=300)
+    onset: Literal["", "sudden", "gradual"] = ""
+    duration: str = Field(default="", max_length=60)
+    severity: Literal["", "mild", "moderate", "severe"] = ""
+    symptoms: list[str] = Field(default_factory=list, max_length=40)  # checklist codes or free text
+    vitals: Vitals = Field(default_factory=Vitals)
+    history: list[str] = Field(default_factory=list, max_length=30)  # comorbidity codes or free text
+    medications: str = Field(default="", max_length=1000)
+    allergies: str = Field(default="", max_length=300)
+    smoking: Literal["", "never", "former", "current"] = ""
+    exam: str = Field(default="", max_length=2000)
+    labs: str = Field(default="", max_length=2000)
+
+    @field_validator("symptoms", "history")
+    @classmethod
+    def _items(cls, values: list[str]) -> list[str]:
+        cleaned = [v.strip()[:80] for v in values if v and v.strip()]
+        return list(dict.fromkeys(cleaned))
+
+    def is_empty(self) -> bool:
+        return not (self.chief_complaint.strip() or self.symptoms or self.exam.strip() or self.labs.strip())
+
+
+class RuleFlag(BaseModel):
+    code: str  # message key, e.g. "spo2_low"
+    severity: Literal["critical", "warning"]
+    value: str = ""  # the measured value that triggered it
+
+
+class ScoreResult(BaseModel):
+    name: str  # "NEWS2", "qSOFA", "CRB-65", "Shock index"
+    value: float
+    band: Literal["low", "medium", "high"]
+    partial: bool = False  # computed from incomplete inputs
+    missing: list[str] = Field(default_factory=list)
+
+
+class ClinicalRules(BaseModel):
+    """Deterministic clinical rules engine output: validated scores and red flags, no model."""
+
+    scores: list[ScoreResult] = Field(default_factory=list)
+    flags: list[RuleFlag] = Field(default_factory=list)
+    priority: Priority = Priority.ROUTINE
+    urgency_floor: Literal["routine", "soon", "urgent"] = "routine"
+
+
+class PipelineStep(BaseModel):
+    """One executed step of the AI architecture, shown to the physician for transparency."""
+
+    id: str  # rules | imaging | vision | reasoner | critic | guardrails
+    status: Literal["done", "skipped", "failed"]
+    model: str = ""
+    detail: str = ""
+    ms: int = 0
+
+
 class DifferentialItem(BaseModel):
     name: str
     probability: int  # estimated percent, 1-90: a model estimate, never a certainty
     reasoning: str = ""
+    evidence_for: list[str] = Field(default_factory=list)  # "Image: …", "Model: …", "Symptom: …"
+    evidence_against: list[str] = Field(default_factory=list)
+    confirm_with: list[str] = Field(default_factory=list)  # tests that would confirm or exclude it
+    cannot_miss: bool = False  # dangerous if missed: must be actively excluded even when unlikely
 
 
 class Assessment(BaseModel):
@@ -285,6 +359,12 @@ class Assessment(BaseModel):
     questions_for_doctor: list[str] = Field(default_factory=list)
     specialty: str = "general"
     disclaimer: str = ""
+    red_flags: list[str] = Field(default_factory=list)  # danger signs that need care today
+    watch_out: list[str] = Field(default_factory=list)  # easily missed points (doctor) / things to check (patient)
+    mismatch: str = ""  # set when the symptoms and the image disagree
+    critic_notes: list[str] = Field(default_factory=list)  # what the safety critic changed or flagged
+    pipeline: list[PipelineStep] = Field(default_factory=list)
+    mode: Literal["multimodal", "clinical"] = "multimodal"  # clinical = no image, symptoms only
 
 
 class LocalizedText(BaseModel):
@@ -339,6 +419,9 @@ class AnalysisResult(BaseModel):
     assessment: Assessment | None = None
     assessment_error: str | None = None
     hospitals: list[Hospital] = Field(default_factory=list)
+    has_image: bool = True
+    clinical: ClinicalData | None = None
+    rules: ClinicalRules | None = None
 
 
 class ReportRequest(BaseModel):
@@ -366,6 +449,8 @@ class CaseSummary(BaseModel):
     reviewed_at: datetime | None
     error: str | None
     urgency: Literal["routine", "soon", "urgent"] | None = None  # from the latest assessment
+    has_image: bool = True
+    chief_complaint: str | None = None
 
 
 class CaseList(BaseModel):

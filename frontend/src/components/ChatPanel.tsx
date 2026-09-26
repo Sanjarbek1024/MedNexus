@@ -142,9 +142,9 @@ export function ChatPanel({ result, open, onClose, patient = false, ref }: {
     <Drawer open={open} onClose={onClose} label={t(patient ? "chat.patientTitle" : "chat.title")}>
       <div className="flex items-start justify-between gap-4 border-b border-slate-200/70 px-6 py-5">
         <div className="flex items-start gap-3">
-          <div className="flex size-10 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-glow"><MessagesSquare className="size-5" /></div>
+          <div className="flex size-10 items-center justify-center rounded-2xl bg-brand text-on-brand shadow-glow"><MessagesSquare className="size-5" /></div>
           <div>
-            <h2 className="text-lg font-bold text-ink">{t(patient ? "chat.patientTitle" : "chat.title")}</h2>
+            <h2 className="text-lg font-semibold text-ink">{t(patient ? "chat.patientTitle" : "chat.title")}</h2>
             <p className="text-xs text-slate-500">{t(patient ? "chat.patientSubtitle" : "chat.subtitle")}</p>
           </div>
         </div>
@@ -162,19 +162,19 @@ export function ChatPanel({ result, open, onClose, patient = false, ref }: {
         {messages?.map((m) => (
           <motion.div key={m.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             {m.role === "user" ? (
-              <div className="max-w-[85%] rounded-2xl rounded-br-md bg-emerald-600 px-4 py-2.5 text-sm whitespace-pre-wrap text-white shadow-sm">{m.content}</div>
+              <div className="max-w-[85%] rounded-2xl rounded-br-md bg-brand px-4 py-2.5 text-sm whitespace-pre-wrap text-on-brand shadow-sm">{m.content}</div>
             ) : (
               <div className="flex max-w-[92%] gap-2">
-                <div className="mt-1 flex size-7 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-600 ring-1 ring-slate-200"><Bot className="size-4" /></div>
-                <div className="rounded-2xl rounded-tl-md bg-white px-4 py-3 text-sm leading-relaxed text-slate-700 shadow-sm ring-1 ring-slate-200/70"><RichText text={m.content} /></div>
+                <div className="mt-1 flex size-7 shrink-0 items-center justify-center rounded-xl bg-surface text-emerald-600 ring-1 ring-slate-200"><Bot className="size-4" /></div>
+                <div className="rounded-2xl rounded-tl-md bg-surface px-4 py-3 text-sm leading-relaxed text-slate-700 shadow-sm ring-1 ring-slate-200/70"><RichText text={m.content} /></div>
               </div>
             )}
           </motion.div>
         ))}
         {streaming !== null && (
           <div className="flex max-w-[92%] gap-2">
-            <div className="mt-1 flex size-7 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-600 ring-1 ring-slate-200"><Bot className="size-4" /></div>
-            <div className="rounded-2xl rounded-tl-md bg-white px-4 py-3 text-sm leading-relaxed text-slate-700 shadow-sm ring-1 ring-slate-200/70">
+            <div className="mt-1 flex size-7 shrink-0 items-center justify-center rounded-xl bg-surface text-emerald-600 ring-1 ring-slate-200"><Bot className="size-4" /></div>
+            <div className="rounded-2xl rounded-tl-md bg-surface px-4 py-3 text-sm leading-relaxed text-slate-700 shadow-sm ring-1 ring-slate-200/70">
               {streaming ? <RichText text={streaming} /> : <span className="flex items-center gap-2 text-slate-400"><LoaderCircle className="size-4 animate-spin" /> {t("chat.thinking")}</span>}
             </div>
           </div>
@@ -182,7 +182,7 @@ export function ChatPanel({ result, open, onClose, patient = false, ref }: {
         {error && <div role="alert" className="rounded-xl bg-rose-50 px-3 py-2.5 text-sm text-rose-700 ring-1 ring-rose-200">{error}</div>}
       </div>
 
-      <div className="border-t border-slate-200/70 bg-white/70 px-6 py-4">
+      <div className="border-t border-slate-200/70 bg-surface/70 px-6 py-4">
         {(empty || (messages?.length ?? 0) < 2) && (
           <div className="mb-3 flex flex-wrap gap-2">
             {list<string>(patient ? "chat.patientSuggestions" : "chat.suggestions").map((s) => (

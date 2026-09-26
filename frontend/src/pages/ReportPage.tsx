@@ -33,8 +33,8 @@ export function ReportPage({ caseId }: { caseId: number }) {
   const heatmap = result.findings.find((f) => f.heatmap)?.heatmap;
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="no-print sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-100 bg-white/90 px-4 py-3 backdrop-blur sm:px-6">
+    <div data-theme="light" className="min-h-screen bg-surface text-ink">
+      <div className="no-print sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-100 bg-surface/90 px-4 py-3 backdrop-blur sm:px-6">
         <Link href={`/cases/${caseId}`} className="btn-ghost"><ArrowLeft className="size-4" /> {t("common.back")}</Link>
         <button type="button" className="btn-primary" onClick={() => window.print()}><Printer className="size-4" /> {t("print.print")}</button>
       </div>
@@ -43,11 +43,11 @@ export function ReportPage({ caseId }: { caseId: number }) {
           <div className="flex min-w-0 items-center gap-3">
             <Logo className="size-10" />
             <div>
-              <div className="text-xl font-extrabold text-ink">{t("print.title")}</div>
+              <div className="text-xl font-semibold text-ink">{t("print.title")}</div>
               <div className="text-sm text-slate-500">MedNexus · {t("common.caseNumber", { id: caseNumber(result.case_id) })}</div>
             </div>
           </div>
-          <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200 sm:shrink-0">{t("print.note")}</span>
+          <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200 sm:shrink-0">{t("print.note")}</span>
         </header>
 
         <dl className="mt-6 grid grid-cols-2 gap-x-8 gap-y-3 text-sm sm:grid-cols-4">
@@ -61,13 +61,13 @@ export function ReportPage({ caseId }: { caseId: number }) {
           <div className="space-y-6">
             {(["findings", "impression", "recommendations"] as const).map((key) => (
               <section key={key}>
-                <h2 className="text-xs font-bold tracking-[0.14em] text-emerald-700 uppercase">{key === "findings" ? t("review.findingsSection") : t(`review.${key}`)}</h2>
+                <h2 className="text-xs font-semibold tracking-[0.14em] text-emerald-700 uppercase">{key === "findings" ? t("review.findingsSection") : t(`review.${key}`)}</h2>
                 <p className="mt-2 leading-relaxed whitespace-pre-line">{report[key] || "—"}</p>
               </section>
             ))}
           </div>
           <figure className="space-y-2">
-            <div className="relative overflow-hidden rounded-xl bg-slate-900">
+            <div className="relative overflow-hidden rounded-xl bg-night">
               <img src={result.image.url} alt="" className="w-full" />
               {heatmap && (
                 <img src={heatmap.url} alt="" className="absolute opacity-70" style={{ left: `${heatmap.box.x * 100}%`, top: `${heatmap.box.y * 100}%`, width: `${heatmap.box.width * 100}%`, height: `${heatmap.box.height * 100}%` }} />

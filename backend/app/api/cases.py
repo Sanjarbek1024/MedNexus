@@ -12,7 +12,7 @@ from sqlmodel import Session, col, func, select
 from app.api.deps import CurrentUser, Doctor, LLMDep, Service, SessionDep, limit
 from app.db import audit
 from app.db.audit import as_utc
-from app.db.models import Case, CaseStatus, ChatMessage, Priority, Role, User
+from app.db.models import Case, CaseStatus, ChatMessage, Priority, User
 from app.db.session import get_engine
 from app.schemas import (
     AnalysisResult,
@@ -175,7 +175,7 @@ async def chat(case_id: int, body: ChatRequest, user: CurrentUser, session: Sess
     session.add(ChatMessage(case_id=case_id, user_id=user.id, role="user", content=body.message.strip(), language=body.language))
     session.commit()
     audit.record(session, "chat_question", user.full_name, {"language": body.language}, user_id=user.id, case_id=case_id)
-    audience = "patient" if user.role == Role.USER else "doctor"
+    audience = "doctor"
     tokens = chat_stream(llm, result, history, body.message.strip(), body.language, audience)
     return StreamingResponse(
         _stream_answer(tokens, case_id, body.language),
