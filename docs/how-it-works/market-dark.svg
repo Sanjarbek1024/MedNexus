@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <rect x="0" y="0" width="1920" height="1080" fill="#050807"/>
+
+  <!-- Header -->
+  <text x="80" y="128" font-family="Segoe UI, Arial, sans-serif" font-size="60" font-weight="700" fill="#F2F7F4">Bozor va pilot</text>
+  <text x="80" y="178" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="400" fill="#9AA8A2">Klinikalar uchun obuna · $500 / oy</text>
+  <text x="1740" y="130" text-anchor="end" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700" fill="#F2F7F4">MedNexus</text>
+  <rect x="1760" y="84" width="72" height="72" rx="18" fill="#0B140F" stroke="#2A3831" stroke-width="2"/>
+  <g transform="translate(1774.4,101.6) scale(0.8)">
+    <path d="M11 12.4 38 2.2v8.9L11 21.4z" fill="#5CFF63" stroke="#5CFF63" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M2.2 29.4 29.4 19v9.2L2.2 38.6z" fill="#5CFF63" stroke="#5CFF63" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M24.2 33.6 52 23.2v9.2L24.2 42.8z" fill="#5CFF63" stroke="#5CFF63" stroke-width="2.4" stroke-linejoin="round"/>
+  </g>
+
+  <!-- TAM / SAM / SOM circles -->
+  <circle cx="500" cy="615" r="370" fill="#101814" stroke="#25322C" stroke-width="2"/>
+  <circle cx="500" cy="615" r="222" fill="#0E2414" stroke="#1E6E25" stroke-width="2"/>
+  <circle cx="500" cy="615" r="108" fill="#5CFF63"/>
+
+  <text x="500" y="288" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" fill="#9AA8A2">TAM · O‘zbekiston</text>
+  <text x="500" y="328" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="36" font-weight="700" fill="#F2F7F4">9 000+ klinika</text>
+  <text x="500" y="362" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="400" fill="#9AA8A2">$54 mln / yil</text>
+
+  <text x="500" y="428" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" fill="#5CFF63">SAM · Namangan</text>
+  <text x="500" y="462" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="32" font-weight="700" fill="#F2F7F4">230+ klinika</text>
+  <text x="500" y="490" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="400" fill="#9AA8A2">$1,38 mln / yil</text>
+
+  <text x="500" y="596" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" fill="#04130A">SOM</text>
+  <text x="500" y="636" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="32" font-weight="700" fill="#04130A">30 klinika</text>
+  <text x="500" y="668" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="600" fill="#04130A">$180 ming / yil</text>
+
+  <!-- Roadmap card -->
+  <rect x="990" y="245" width="850" height="215" rx="24" fill="#101814" stroke="#25322C" stroke-width="2"/>
+  <text x="1022" y="293" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" fill="#5CFF63">Yo‘l xaritasi</text>
+  <rect x="1022" y="320" width="240" height="108" rx="18" fill="#081A26" stroke="#38BDF8" stroke-width="2" stroke-dasharray="10 8"/>
+  <text x="1142" y="360" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700" fill="#F2F7F4">Pilot</text>
+  <text x="1142" y="396" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="400" fill="#9AA8A2">1–2 oy · bepul</text>
+  <polygon points="1286,370 1300,374 1286,378" fill="#9AA8A2"/>
+  <line x1="1268" y1="374" x2="1288" y2="374" stroke="#9AA8A2" stroke-width="2"/>
+  <rect x="1310" y="320" width="240" height="108" rx="18" fill="#0E2414" stroke="#1E6E25" stroke-width="2"/>
+  <text x="1430" y="360" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700" fill="#F2F7F4">30 klinika</text>
+  <text x="1430" y="396" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="400" fill="#9AA8A2">Namangan</text>
+  <polygon points="1574,370 1588,374 1574,378" fill="#9AA8A2"/>
+  <line x1="1556" y1="374" x2="1576" y2="374" stroke="#9AA8A2" stroke-width="2"/>
+  <rect x="1598" y="320" width="210" height="108" rx="18" fill="#5CFF63"/>
+  <text x="1703" y="360" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700" fill="#04130A">O‘zbekiston</text>
+  <text x="1703" y="396" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="600" fill="#04130A">9 000+ klinika</text>
+
+  <!-- Unit economics card -->
+  <rect x="990" y="490" width="850" height="230" rx="24" fill="#101814" stroke="#25322C" stroke-width="2"/>
+  <text x="1022" y="538" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" fill="#5CFF63">Bitta klinika · oyiga</text>
+  <text x="1022" y="620" font-family="Segoe UI, Arial, sans-serif" font-size="56" font-weight="700" fill="#F2F7F4">$500</text>
+  <text x="1022" y="664" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="400" fill="#9AA8A2">narx</text>
+  <text x="1300" y="620" font-family="Segoe UI, Arial, sans-serif" font-size="56" font-weight="700" fill="#F2F7F4">$40–50</text>
+  <text x="1300" y="664" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="400" fill="#9AA8A2">xarajat</text>
+  <text x="1578" y="620" font-family="Segoe UI, Arial, sans-serif" font-size="56" font-weight="700" fill="#5CFF63">$450+</text>
+  <text x="1578" y="664" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="400" fill="#9AA8A2">foyda · marja ~90%</text>
+
+  <!-- SOM result card -->
+  <rect x="990" y="750" width="850" height="230" rx="24" fill="#5CFF63"/>
+  <text x="1022" y="798" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" fill="#04130A">SOM natijasi · 30 klinika</text>
+  <text x="1022" y="880" font-family="Segoe UI, Arial, sans-serif" font-size="50" font-weight="700" fill="#04130A">$15 000</text>
+  <text x="1022" y="924" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="600" fill="#04130A">daromad / oy</text>
+  <text x="1290" y="880" font-family="Segoe UI, Arial, sans-serif" font-size="50" font-weight="700" fill="#04130A">~$13 700</text>
+  <text x="1290" y="924" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="600" fill="#04130A">foyda / oy</text>
+  <text x="1610" y="880" font-family="Segoe UI, Arial, sans-serif" font-size="50" font-weight="700" fill="#04130A">$180K</text>
+  <text x="1610" y="924" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="600" fill="#04130A">daromad / yil</text>
+
+  <!-- Footnote -->
+  <text x="80" y="1040" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="400" fill="#6B7A73">Jamoa hisob-kitobi · $500 / oy obuna asosida · taxminiy, pilotda tekshiriladi</text>
+</svg>
