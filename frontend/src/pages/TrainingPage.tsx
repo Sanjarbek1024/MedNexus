@@ -119,7 +119,7 @@ export function TrainingPage() {
               <section className="card p-5">
                 <h2 className="flex items-center gap-2 font-bold text-ink"><Stethoscope className="size-5 text-emerald-600" /> {t("training.yourRead")}</h2>
                 <p className="mt-1 text-sm text-slate-500">{t("training.selectFindings")}</p>
-                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
                   {task.candidates.map((name) => (
                     <button
                       key={name}
@@ -130,10 +130,10 @@ export function TrainingPage() {
                         selected.includes(name) ? "bg-emerald-50 text-emerald-800 ring-emerald-300" : "bg-white text-slate-600 ring-slate-200 hover:ring-slate-300"
                       }`}
                     >
-                      <span className={`flex size-4 items-center justify-center rounded-md border ${selected.includes(name) ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300"}`}>
+                      <span className={`flex size-4 shrink-0 items-center justify-center rounded-md border ${selected.includes(name) ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300"}`}>
                         {selected.includes(name) && <Check className="size-3" />}
                       </span>
-                      {finding(name)}
+                      <span className="min-w-0 break-words">{finding(name)}</span>
                     </button>
                   ))}
                 </div>
@@ -212,7 +212,7 @@ export function TrainingPage() {
                   <div className="eyebrow mb-3">{t("training.perPathology")}</div>
                   <ul className="space-y-2.5">
                     {stats.per_pathology.filter((p) => p.sensitivity !== null).slice(0, 10).map((p) => (
-                      <li key={p.name} className="grid grid-cols-[1fr_6rem_3rem] items-center gap-3 text-xs">
+                      <li key={p.name} className="grid grid-cols-[minmax(0,1fr)_4.5rem_2.5rem] items-center gap-3 text-xs">
                         <span className="truncate font-medium text-slate-700">{finding(p.name)}</span>
                         <div className="h-2 rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${p.sensitivity! * 100}%` }} /></div>
                         <span className="text-right tabular-nums text-slate-500">{percent(p.sensitivity!)}</span>

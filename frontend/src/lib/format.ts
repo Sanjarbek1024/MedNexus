@@ -33,6 +33,9 @@ const MODEL_NAMES: Record<string, string> = {
   "densenet121-res224-all": "DenseNet-121",
   "resnet50-res512-all": "ResNet-50",
   "yolov7-p6-bonefracture": "YOLOv7 (fracture)",
+  "vit-b16-brain-tumor": "ViT-B/16 (brain tumor)",
+  "chestx-det-pspnet": "PSPNet (anatomy)",
+  "autoencoder-101-elastic": "ResNet autoencoder (OOD)",
 };
 
 export const modelName = (weights: string): string => MODEL_NAMES[weights] ?? weights;

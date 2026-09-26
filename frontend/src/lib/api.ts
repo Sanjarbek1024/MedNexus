@@ -30,6 +30,7 @@ export interface Health {
   database: string;
   analyzers: { id: string; label: string; versions: Record<string, string> }[];
   llm: { provider: string; model: string; configured: boolean };
+  vision: { provider: string; model: string; configured: boolean } | null;
 }
 
 export interface Box { x: number; y: number; width: number; height: number }

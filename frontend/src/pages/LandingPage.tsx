@@ -118,7 +118,7 @@ function ProductPreview() {
         initial={{ opacity: 0, x: 30 }}
         animate={{ opacity: 1, x: 0, y: [0, -6, 0] }}
         transition={{ delay: 0.5, y: { duration: 4, repeat: Infinity, ease: "easeInOut" } }}
-        className="absolute -right-4 top-10 w-52 rounded-2xl border border-white/80 bg-white/90 p-3 shadow-xl backdrop-blur-xl sm:-right-10"
+        className="absolute top-10 right-2 w-52 rounded-2xl border border-white/80 bg-white/90 p-3 shadow-xl backdrop-blur-xl sm:-right-4 xl:-right-10"
       >
         <div className="flex items-center justify-between">
           <span className="text-sm font-bold text-ink">{t("landing.previewFinding")}</span>
@@ -139,7 +139,7 @@ function ProductPreview() {
         initial={{ opacity: 0, x: -30 }}
         animate={{ opacity: 1, x: 0, y: [0, 6, 0] }}
         transition={{ delay: 0.8, y: { duration: 5, repeat: Infinity, ease: "easeInOut" } }}
-        className="absolute -left-4 bottom-10 w-56 rounded-2xl border border-white/80 bg-white/90 p-3 shadow-xl backdrop-blur-xl sm:-left-12"
+        className="absolute bottom-10 left-2 w-56 rounded-2xl border border-white/80 bg-white/90 p-3 shadow-xl backdrop-blur-xl sm:-left-12"
       >
         <div className="eyebrow mb-2">{t("safety.title")}</div>
         {checks.split("|").map((label, i) => (
@@ -247,20 +247,20 @@ export function LandingPage() {
   return (
     <div className="min-h-screen overflow-x-clip">
       <header className="sticky top-0 z-40 border-b border-white/70 bg-canvas/75 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2.5">
+        <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:gap-6 sm:px-6">
+          <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="MedNexus">
             <Logo />
-            <span className="text-[15px] font-extrabold tracking-tight text-ink">MedNexus</span>
+            <span className="hidden text-[15px] font-extrabold tracking-tight text-ink sm:inline">MedNexus</span>
           </Link>
-          <nav className="hidden items-center gap-5 text-sm font-semibold text-slate-500 md:flex">
-            <a href="#audiences" className="hover:text-ink">{t("landing.audiencesTitle")}</a>
-            <a href="#problem" className="hover:text-ink">{t("landing.problemTitle")}</a>
-            <a href="#how" className="hover:text-ink">{t("landing.howTitle")}</a>
-            <a href="#safety" className="hover:text-ink">{t("landing.safetyTitle")}</a>
+          <nav className="hidden items-center gap-5 text-sm font-semibold whitespace-nowrap text-slate-500 lg:flex">
+            <a href="#audiences" className="hover:text-ink">{t("landing.nav.audiences")}</a>
+            <a href="#problem" className="hover:text-ink">{t("landing.nav.problem")}</a>
+            <a href="#how" className="hover:text-ink">{t("landing.nav.how")}</a>
+            <a href="#safety" className="hover:text-ink">{t("landing.nav.safety")}</a>
           </nav>
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex items-center gap-2 sm:gap-3">
             <LanguageSwitch />
-            <Link href={home ?? "/signin"} className="btn-primary rounded-full px-5">
+            <Link href={home ?? "/signin"} className="btn-primary rounded-full px-4 whitespace-nowrap sm:px-5">
               {user ? t("landing.openApp") : t("common.signIn")}
             </Link>
           </div>

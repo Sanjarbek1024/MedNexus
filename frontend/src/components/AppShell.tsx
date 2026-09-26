@@ -101,7 +101,7 @@ function UserMenu() {
           {initials(user.full_name)}
         </span>
         <span className="hidden text-left leading-tight sm:block">
-          <span className="block text-sm font-semibold text-ink">{user.full_name}</span>
+          <span className="block text-sm font-semibold whitespace-nowrap text-ink">{user.full_name}</span>
           <span className="block text-[11px] text-slate-500">{t(`roles.${user.role}`)}</span>
         </span>
       </button>
@@ -240,8 +240,8 @@ export function AppShell({ path, children }: { path: string; children: ReactNode
           <button type="button" className="rounded-xl p-2 text-slate-500 hover:bg-white lg:hidden" onClick={() => setMobileOpen(true)} aria-label={t("nav.menu")}>
             <Menu className="size-5" />
           </button>
-          <Disclaimer className="hidden md:flex" />
-          <div className="ml-auto flex items-center gap-3">
+          <Disclaimer className="hidden min-w-0 md:flex" />
+          <div className="ml-auto flex shrink-0 items-center gap-3">
             <LanguageSwitch onChange={setLanguage} />
             <UserMenu />
           </div>

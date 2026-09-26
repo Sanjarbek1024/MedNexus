@@ -139,12 +139,12 @@ export function WorklistPage() {
                     onClick={() => navigate(`/cases/${item.id}`)}
                     className={`group cursor-pointer transition hover:bg-emerald-50/40 ${item.priority === "urgent" && item.status !== "reviewed" ? "bg-rose-50/30" : ""}`}
                   >
-                    <td className="px-5 py-3">
+                    <td className="px-5 py-3 whitespace-nowrap">
                       <div className="flex items-center gap-3">
                         {item.thumbnail ? (
-                          <img src={item.thumbnail} alt="" className="size-11 rounded-xl bg-slate-900 object-cover" />
+                          <img src={item.thumbnail} alt="" className="size-11 shrink-0 rounded-xl bg-slate-900 object-cover" />
                         ) : (
-                          <div className="size-11 rounded-xl bg-slate-100" />
+                          <div className="size-11 shrink-0 rounded-xl bg-slate-100" />
                         )}
                         <div>
                           <Link href={`/cases/${item.id}`} className="font-bold text-ink">{caseNumber(item.id)}</Link>

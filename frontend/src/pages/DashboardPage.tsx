@@ -29,7 +29,7 @@ export function DashboardPage() {
   }, []);
 
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? "greetingMorning" : hour < 18 ? "greetingAfternoon" : "greetingEvening";
+  const greeting = hour >= 5 && hour < 12 ? "greetingMorning" : hour >= 12 && hour < 18 ? "greetingAfternoon" : "greetingEvening";
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6">
@@ -104,16 +104,17 @@ export function DashboardPage() {
               {stats.urgent_cases.map((item) => (
                 <li key={item.id}>
                   <Link href={`/cases/${item.id}`} className="group flex items-center gap-3 py-3">
-                    {item.thumbnail && <img src={item.thumbnail} alt="" className="size-11 rounded-xl bg-slate-900 object-cover" />}
+                    {item.thumbnail && <img src={item.thumbnail} alt="" className="size-11 shrink-0 rounded-xl bg-slate-900 object-cover" />}
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 text-sm font-bold text-ink">
-                        {caseNumber(item.id)} <span className="font-mono text-xs font-medium text-slate-400">{item.patient.pseudonym}</span>
+                      <div className="flex min-w-0 items-center gap-2 text-sm font-bold text-ink">
+                        <span className="shrink-0">{caseNumber(item.id)}</span>
+                        <span className="truncate font-mono text-xs font-medium text-slate-400">{item.patient.pseudonym}</span>
                       </div>
                       <div className="truncate text-xs text-slate-500">
                         {study(item)} · {item.headline ? finding(item.headline) : t("worklist.noFindings")}
                       </div>
                     </div>
-                    <div className="flex flex-col items-end gap-1 text-xs text-slate-500">
+                    <div className="flex shrink-0 flex-col items-end gap-1 text-xs text-slate-500">
                       <PriorityBadge priority={item.priority} reason={item.priority_reason} />
                       <Waiting since={item.created_at} />
                     </div>

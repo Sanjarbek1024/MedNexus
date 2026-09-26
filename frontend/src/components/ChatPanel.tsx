@@ -1,12 +1,14 @@
 import { motion } from "framer-motion";
 import { Bot, LoaderCircle, MessagesSquare, SendHorizontal, Sparkles, X } from "lucide-react";
-import { Fragment, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { Fragment, useEffect, useImperativeHandle, useRef, useState, type KeyboardEvent, type ReactNode, type Ref } from "react";
 
 import { useI18n } from "../i18n";
 import { api, type AnalysisResult, type ChatMessage } from "../lib/api";
 import { Drawer } from "./ui";
 
 const BREAK = /<br\s*\/?>/gi;
+// "-", "*", "•", en and em dashes, "1." and "1)" start a list item.
+const BULLET = /^\s*([-*•–—]|\d+[.)])\s+/;
 const cells = (row: string) => row.trim().replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
 
 /** Minimal, safe rendering of the assistant's markdown: paragraphs, bullets, tables and **bold**. */
@@ -36,24 +38,47 @@ function RichText({ text }: { text: string }) {
             </div>
           );
         }
-        const lines = block.replace(BREAK, "\n").split("\n").filter(Boolean);
-        if (lines.length && lines.every((l) => /^\s*([-*•]|\d+\.)\s+/.test(l))) {
-          return (
-            <ul key={i} className="space-y-1">
-              {lines.map((l, j) => (
-                <li key={j} className="flex gap-2"><span className="mt-2 size-1 shrink-0 rounded-full bg-emerald-500" /><span>{inline(l.replace(/^\s*([-*•]|\d+\.)\s+/, ""))}</span></li>
-              ))}
-            </ul>
-          );
+        // A block may mix a heading line with the list below it: consecutive list lines form one list.
+        const groups: { list: boolean; lines: string[] }[] = [];
+        for (const line of block.replace(BREAK, "\n").split("\n").filter((l) => l.trim())) {
+          const list = BULLET.test(line);
+          const last = groups[groups.length - 1];
+          if (last?.list === list) last.lines.push(line);
+          else groups.push({ list, lines: [line] });
         }
-        return <p key={i}>{lines.map((l, j) => <Fragment key={j}>{j > 0 && <br />}{inline(l.replace(/^#+\s*/, ""))}</Fragment>)}</p>;
+        return (
+          <Fragment key={i}>
+            {groups.map((group, j) =>
+              group.list ? (
+                <ul key={j} className="space-y-1">
+                  {group.lines.map((l, k) => (
+                    <li key={k} className="flex gap-2"><span className="mt-2 size-1 shrink-0 rounded-full bg-emerald-500" /><span>{inline(l.replace(BULLET, ""))}</span></li>
+                  ))}
+                </ul>
+              ) : (
+                <p key={j}>{group.lines.map((l, k) => <Fragment key={k}>{k > 0 && <br />}{inline(l.replace(/^#+\s*/, ""))}</Fragment>)}</p>
+              ),
+            )}
+          </Fragment>
+        );
       })}
     </div>
   );
 }
 
+export interface ChatHandle {
+  /** Sends a question, e.g. a suggestion picked outside the panel. */
+  ask: (question: string) => void;
+}
+
 /** `patient` switches to plain-language copy and patient suggestions (the backend picks the matching prompt by role). */
-export function ChatPanel({ result, open, onClose, patient = false }: { result: AnalysisResult; open: boolean; onClose: () => void; patient?: boolean }) {
+export function ChatPanel({ result, open, onClose, patient = false, ref }: {
+  result: AnalysisResult;
+  open: boolean;
+  onClose: () => void;
+  patient?: boolean;
+  ref?: Ref<ChatHandle>;
+}) {
   const { t, list, language } = useI18n();
   const [messages, setMessages] = useState<ChatMessage[] | null>(null);
   const [draft, setDraft] = useState("");
@@ -64,7 +89,11 @@ export function ChatPanel({ result, open, onClose, patient = false }: { result: 
 
   useEffect(() => {
     if (!open || messages) return;
-    api.chatHistory(result.case_id).then(setMessages, () => setMessages([]));
+    // A question sent before the history arrived already holds the history: keep it.
+    api.chatHistory(result.case_id).then(
+      (history) => setMessages((current) => current ?? history),
+      () => setMessages((current) => current ?? []),
+    );
   }, [open, messages, result.case_id]);
 
   useEffect(() => {
@@ -80,9 +109,10 @@ export function ChatPanel({ result, open, onClose, patient = false }: { result: 
     if (!message || streaming !== null) return;
     setDraft("");
     setError(null);
-    const now = new Date().toISOString();
-    setMessages((all) => [...(all ?? []), { id: -Date.now(), role: "user", content: message, language, author: null, created_at: now }]);
     setStreaming("");
+    const history = messages ?? (await api.chatHistory(result.case_id).catch((): ChatMessage[] => []));
+    const now = new Date().toISOString();
+    setMessages((all) => [...(all ?? history), { id: -Date.now(), role: "user", content: message, language, author: null, created_at: now }]);
     let answer = "";
     try {
       await api.chat(result.case_id, message, language, (token) => {
@@ -97,6 +127,8 @@ export function ChatPanel({ result, open, onClose, patient = false }: { result: 
     }
   };
 
+  useImperativeHandle(ref, () => ({ ask: (question: string) => void send(question) }));
+
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
@@ -107,12 +139,12 @@ export function ChatPanel({ result, open, onClose, patient = false }: { result: 
   const empty = messages !== null && messages.length === 0 && streaming === null;
 
   return (
-    <Drawer open={open} onClose={onClose} label={t("chat.title")}>
+    <Drawer open={open} onClose={onClose} label={t(patient ? "chat.patientTitle" : "chat.title")}>
       <div className="flex items-start justify-between gap-4 border-b border-slate-200/70 px-6 py-5">
         <div className="flex items-start gap-3">
           <div className="flex size-10 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-glow"><MessagesSquare className="size-5" /></div>
           <div>
-            <h2 className="text-lg font-bold text-ink">{t("chat.title")}</h2>
+            <h2 className="text-lg font-bold text-ink">{t(patient ? "chat.patientTitle" : "chat.title")}</h2>
             <p className="text-xs text-slate-500">{t(patient ? "chat.patientSubtitle" : "chat.subtitle")}</p>
           </div>
         </div>
@@ -167,15 +199,15 @@ export function ChatPanel({ result, open, onClose, patient = false }: { result: 
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder={t("chat.placeholder")}
+            placeholder={t(patient ? "chat.patientPlaceholder" : "chat.placeholder")}
             className="field resize-none"
-            aria-label={t("chat.placeholder")}
+            aria-label={t(patient ? "chat.patientPlaceholder" : "chat.placeholder")}
           />
           <button type="button" onClick={() => send(draft)} disabled={!draft.trim() || streaming !== null} className="btn-primary h-11 w-11 shrink-0 rounded-xl p-0" aria-label={t("chat.send")}>
             {streaming !== null ? <LoaderCircle className="size-4 animate-spin" /> : <SendHorizontal className="size-4" />}
           </button>
         </div>
-        <p className="mt-2 text-[11px] text-slate-400">{t("chat.note")}</p>
+        <p className="mt-2 text-[11px] text-slate-400">{t(patient ? "chat.patientNote" : "chat.note")}</p>
       </div>
     </Drawer>
   );

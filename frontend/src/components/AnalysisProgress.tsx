@@ -32,7 +32,7 @@ export function ScanningImage({ preview }: { preview: string | null }) {
   );
 }
 
-export function StepList({ reached }: { reached: Stage[] }) {
+export function StepList({ reached, patient = false }: { reached: Stage[]; patient?: boolean }) {
   const { t, list } = useI18n();
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
@@ -44,16 +44,16 @@ export function StepList({ reached }: { reached: Stage[] }) {
 
   return (
     <div className="card p-6">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
           <div className="eyebrow">{t("analyze.analyzing")}</div>
           <div className="mt-1 text-lg font-bold text-ink">{t("analyze.running")}</div>
         </div>
-        <div className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold tabular-nums text-emerald-700">{elapsed.toFixed(1)} s</div>
+        <div className="shrink-0 rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold whitespace-nowrap tabular-nums text-emerald-700">{elapsed.toFixed(1)} s</div>
       </div>
       <ol className="mt-6 space-y-1">
         {STEPS.map((step, index) => {
-          const [label, detail] = list<string>(`analyze.steps.${step}`);
+          const [label, detail] = list<string>(patient && step === "report" ? "analyze.patientSteps.report" : `analyze.steps.${step}`);
           const state = index < current ? "done" : index === current ? "active" : "pending";
           return (
             <motion.li

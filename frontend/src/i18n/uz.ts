@@ -53,6 +53,7 @@ const uz: Messages = {
     modalities: "Ko‘krak rentgeni va flyuorografiya · Sinishlar · Bosh miya MRT",
     start: "Bepul boshlash",
     openApp: "Ilovani ochish",
+    nav: { audiences: "Kim uchun", problem: "Nega kerak", how: "Qanday ishlaydi", safety: "Xavfsizlik" },
     audiencesTitle: "Bitta platforma, ikki xil foydalanuvchi",
     forPeople: {
       title: "Odamlar uchun",
@@ -148,6 +149,7 @@ const uz: Messages = {
     },
   },
   urgency: { routine: "Shoshilish shart emas", soon: "Yaqin kunlarda shifokorga uchrashing", urgent: "Bugun shifokorga uchrashing" },
+  urgencyClinical: { routine: "Rejali", soon: "Yaqin kunlarda", urgent: "Shu kuni" },
   patient: {
     eyebrow: "Natijangiz",
     back: "Tekshiruvlarim",
@@ -172,6 +174,7 @@ const uz: Messages = {
     chatHint: "Natijangiz haqida oddiy so‘zlar bilan so‘rang.",
     disclaimerTitle: "Bu tashxis emas",
     disclaimer: "Bu tashxis emas. AI 100% kafolat bermaydi. Yakuniy xulosani shifokor beradi.",
+    disclaimerText: "AI 100% kafolat bermaydi: ehtimolliklar taxminiy. Yakuniy xulosani sizni ko‘rikdan o‘tkazgan shifokor beradi.",
     unavailableTitle: "Izoh hali tayyor emas",
     unavailableText: "Rasmingiz tahlil qilindi, lekin izohni hozir yozib bo‘lmadi. Birozdan so‘ng qayta urinib ko‘ring.",
     retry: "Qayta urinish",
@@ -268,7 +271,7 @@ const uz: Messages = {
     comingSoon: "Tez orada",
     symptoms: "Simptomlar",
     symptomsPlaceholder: "Masalan: 3 kundan beri yo‘tal, isitma 38°, nafas qisishi",
-    symptomsHint: "Ixtiyoriy, lekin AI izohni sizga moslashtirishiga yordam beradi.",
+    symptomsHint: "Ixtiyoriy, lekin AI izohni aniqroq qilishga yordam beradi.",
     age: "Yosh",
     sex: "Jins",
     sexUnset: "Ko‘rsatilmagan",
@@ -282,7 +285,6 @@ const uz: Messages = {
       chest: { title: "Ko‘krak qafasi rentgeni / flyuorografiya", text: "O‘pka va yurak" },
       extremity: { title: "Qo‘l-oyoq rentgeni", text: "Suyaklar, sinish ehtimoli" },
       brain: { title: "Bosh miya MRT", text: "Boshning MRT tasviri" },
-      ct: { title: "KT (tajribaviy)", text: "Faqat vizual-til modeli o‘qiydi" },
     },
     run: "Tahlil qilish",
     runBatch: "{n} ta tekshiruvni navbatga qo‘yish",
@@ -296,6 +298,9 @@ const uz: Messages = {
       models: ["Modellar", "Ixtisoslashgan modellar tasvirni o‘qiydi"],
       explainability: ["Tushuntirish", "Topilmalar uchun issiqlik xaritalari va aniqlashlar"],
       report: ["Hisobot", "Shifokor ko‘rigi uchun asoslangan qoralama"],
+    },
+    patientSteps: {
+      report: ["Izoh", "AI rasmni simptomlaringiz bilan birga o‘qib, tushunarli izoh yozmoqda"],
     },
   },
   viewer: {
@@ -315,6 +320,7 @@ const uz: Messages = {
     heart: "Yurak",
     analyzedRegion: "Tahlil qilingan soha",
     hint: "G‘ildirak — kattalashtirish · tortish — surish · ? — tezkor tugmalar",
+    hintBasic: "G‘ildirak — kattalashtirish · tortish — surish",
     keys: {
       zoom: "Kattalashtirish / kichraytirish",
       reset: "Ko‘rinishni tiklash",
@@ -340,6 +346,7 @@ const uz: Messages = {
     newAnalysis: "Yangi tahlil",
     patientStudies: "Bu bemorning {n} ta tekshiruvi",
     comparePriors: "Oldingi bilan solishtirish",
+    notFound: "Bu holat topilmadi yoki hisobingiz uchun mavjud emas.",
   },
   findings: {
     eyebrow: "AI topilmalari",
@@ -412,7 +419,6 @@ const uz: Messages = {
     report_grounded: "AI hisobotidagi har bir topilma tasvir modellaridan olingan.",
     report_removed: "Tasvir modellari chiqarmagani uchun AI hisobotidan olib tashlandi: {items}.",
     report_unavailable: "AI hisoboti mavjud emas ({error}). Model natijalari izohsiz ko‘rsatilmoqda.",
-    vision_only: "Bu tekshiruv turi uchun hali maxsus model yo‘q: faqat umumiy vizual-til modeli tahlil qildi (tajribaviy).",
   },
   report: {
     title: "AI hisoboti",
@@ -459,6 +465,7 @@ const uz: Messages = {
   audit: {
     title: "Audit izi",
     subtitle: "Faqat qo‘shiladi. Har bir yozuv oldingisiga SHA-256 orqali bog‘langan.",
+    system: "Tizim",
     intact: "Audit zanjiri butun · {n} ta hodisa",
     broken: "Audit zanjiri buzilgan: yozuvlar o‘zgartirilgan",
     actions: {
@@ -470,6 +477,7 @@ const uz: Messages = {
       review_edit: "Shifokor tahrirlab imzoladi",
       review_reject: "Shifokor AI qoralamasini rad etdi",
       chat_question: "Chatda savol berildi",
+      assessment_generated: "AI differensial tashxisi tayyorlandi",
     },
   },
   chat: {
@@ -484,6 +492,7 @@ const uz: Messages = {
       "Xulosa bo‘limi qoralamasini yozing",
       "Qaysi topilmalar shifokor mulohazasini talab qiladi?",
     ],
+    patientTitle: "Natijangiz bo‘yicha chat",
     patientSubtitle: "Natijangiz haqida oddiy tilda javoblar.",
     patientEmpty: "Natijangiz haqida istalgan savolni bering. Yordamchi tushuntiradi, tashxis qo‘ymaydi.",
     patientSuggestions: [
@@ -493,6 +502,8 @@ const uz: Messages = {
       "Qanday tekshiruvlar kerak?",
     ],
     note: "Faqat qaror yordami. Tasvirlar bilan tekshiring.",
+    patientNote: "Bu tashxis emas. Yakuniy xulosani shifokor beradi.",
+    patientPlaceholder: "Natijangiz haqida so‘rang…",
     thinking: "O‘ylanmoqda…",
     unavailable: "Yordamchi hozircha mavjud emas.",
   },
@@ -504,6 +515,7 @@ const uz: Messages = {
     prior: "Oldingi",
     current: "Joriy",
     interval: "Oraliq: {days} kun",
+    intervalHours: "Oraliq: {n} soat",
     sync: "Kattalashtirish va surish sinxron",
     deltaTitle: "Topilmalar farqi",
     columns: { finding: "Topilma", prior: "Oldingi", current: "Joriy", change: "O‘zgarish", trend: "Dinamika" },
@@ -584,6 +596,10 @@ const uz: Messages = {
     subscriptionFree: "Bepul (demo davri)",
     subscriptionHint: "Shifokorlar uchun oylik obuna hozircha bepul. To‘lov ma’lumotlari talab qilinmaydi.",
     about: "Tizim",
+    version: "Versiya",
+    llm: "Hisobot va chat modeli",
+    vision: "Vizual-til modeli",
+    analyzers: "Tahlil modullari",
   },
   print: {
     title: "Radiologik hisobot",

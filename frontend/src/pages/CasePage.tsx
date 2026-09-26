@@ -28,7 +28,7 @@ import { ReportEditor } from "../components/ReportEditor";
 import { SafetyPanel } from "../components/SafetyPanel";
 import { PriorityBadge, Skeleton, StatusChip } from "../components/ui";
 import { useI18n } from "../i18n";
-import { api, type AnalysisResult, type AuditEvent, type ReviewAction } from "../lib/api";
+import { api, ApiError, type AnalysisResult, type AuditEvent, type ReviewAction } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { caseNumber } from "../lib/format";
 import { Link, navigate } from "../lib/router";
@@ -66,7 +66,7 @@ function AuditTrail({ events }: { events: AuditEvent[] }) {
               <div className="min-w-0 text-sm">
                 <div className="font-semibold text-ink">{label.startsWith("audit.") ? event.action : label}</div>
                 <div className="text-xs text-slate-500">
-                  {event.actor} · {date(event.timestamp)} · <span className="font-mono" title={event.hash}>{event.hash.slice(0, 12)}…</span>
+                  {event.actor === "system" ? t("audit.system") : event.actor} · {date(event.timestamp)} · <span className="font-mono" title={event.hash}>{event.hash.slice(0, 12)}…</span>
                 </div>
               </div>
             </li>
@@ -249,14 +249,23 @@ export function CasePage({ caseId }: { caseId: number }) {
 
   useEffect(() => {
     if (result?.case_id === caseId && !pending) return;
-    const load = () => api.case(caseId).then(setResult, (e: Error) => setError(e.message));
+    const load = () =>
+      api.case(caseId).then(setResult, (e: ApiError) => setError(e.status === 404 ? t("case.notFound") : e.message || t("common.error")));
     if (!result || result.case_id !== caseId) load();
     if (!pending) return;
     const timer = window.setInterval(load, 2500);
     return () => window.clearInterval(timer);
-  }, [caseId, result, pending]);
+  }, [caseId, result, pending, t]);
 
-  if (error) return <div className="mx-auto max-w-xl px-6 pt-24 text-center text-slate-600">{error}</div>;
+  if (error) {
+    return (
+      <div className="mx-auto flex max-w-lg flex-col items-center gap-4 px-6 pt-24 text-center">
+        <TriangleAlert className="size-10 text-slate-400" />
+        <p className="text-slate-600">{error}</p>
+        <Link href={doctor ? "/worklist" : "/my"} className="btn-ghost"><ArrowLeft className="size-4" /> {doctor ? t("case.history") : t("patient.back")}</Link>
+      </div>
+    );
+  }
   if (!result) {
     return (
       <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-4 pt-10 sm:px-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">

@@ -105,3 +105,30 @@ const SPECIALTIES: Record<Language, Record<string, string>> = {
 };
 
 export const specialtyLabel = (language: Language, id: string): string => SPECIALTIES[language][id] ?? id;
+
+// Analyzer labels from analyzers.yaml plugins (the API and the audit log keep the English label).
+const ANALYZERS: Record<Exclude<Language, "en">, Record<string, string>> = {
+  uz: {
+    "DICOM header consistency": "DICOM sarlavhasi muvofiqligi",
+    "Image quality gate": "Tasvir sifati filtri",
+    "Out-of-distribution gate (autoencoder)": "Taqsimotdan tashqari filtr (autoenkoder)",
+    "Anatomy segmentation (PSPNet)": "Anatomik segmentatsiya (PSPNet)",
+    "Pathology ensemble (DenseNet-121 + ResNet-50)": "Patologiyalar ansambli (DenseNet-121 + ResNet-50)",
+    "Body-region gate (anatomy)": "Tana sohasi filtri (anatomiya)",
+    "Fracture detector (YOLOv7, GRAZPEDWRI-DX)": "Sinish detektori (YOLOv7, GRAZPEDWRI-DX)",
+    "Brain tumor classifier (ViT-B/16, brain MRI)": "Miya o‘smasi klassifikatori (ViT-B/16, bosh miya MRT)",
+  },
+  ru: {
+    "DICOM header consistency": "Согласованность заголовка DICOM",
+    "Image quality gate": "Фильтр качества изображения",
+    "Out-of-distribution gate (autoencoder)": "Фильтр вне распределения (автоэнкодер)",
+    "Anatomy segmentation (PSPNet)": "Анатомическая сегментация (PSPNet)",
+    "Pathology ensemble (DenseNet-121 + ResNet-50)": "Ансамбль патологий (DenseNet-121 + ResNet-50)",
+    "Body-region gate (anatomy)": "Фильтр области тела (анатомия)",
+    "Fracture detector (YOLOv7, GRAZPEDWRI-DX)": "Детектор переломов (YOLOv7, GRAZPEDWRI-DX)",
+    "Brain tumor classifier (ViT-B/16, brain MRI)": "Классификатор опухолей мозга (ViT-B/16, МРТ головного мозга)",
+  },
+};
+
+export const analyzerLabel = (language: Language, label: string): string =>
+  language === "en" ? label : (ANALYZERS[language][label] ?? label);

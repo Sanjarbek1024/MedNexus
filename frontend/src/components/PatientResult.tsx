@@ -24,13 +24,13 @@ import {
   UserRound,
   type LucideIcon,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 
 import { useI18n } from "../i18n";
 import { api, type AnalysisResult, type Assessment, type Hospital, type Urgency } from "../lib/api";
 import { useToast } from "../lib/toast";
 import { Link, navigate } from "../lib/router";
-import { ChatPanel } from "./ChatPanel";
+import { ChatPanel, type ChatHandle } from "./ChatPanel";
 import { ImageViewer } from "./ImageViewer";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -60,11 +60,12 @@ const URGENCY: Record<Urgency, { icon: LucideIcon; chip: string; banner: string;
   },
 };
 
-export function UrgencyChip({ urgency }: { urgency: Urgency }) {
+/** `clinical` shows the timing for a physician ("Same day") instead of advice to the person ("See a doctor today"). */
+export function UrgencyChip({ urgency, clinical = false }: { urgency: Urgency; clinical?: boolean }) {
   const { t } = useI18n();
   return (
-    <span className={`chip ${URGENCY[urgency].chip}`}>
-      <span className={`size-1.5 rounded-full ${URGENCY[urgency].dot}`} /> {t(`urgency.${urgency}`)}
+    <span className={`chip max-w-full whitespace-normal ${URGENCY[urgency].chip}`}>
+      <span className={`size-1.5 shrink-0 rounded-full ${URGENCY[urgency].dot}`} /> {t(`${clinical ? "urgencyClinical" : "urgency"}.${urgency}`)}
     </span>
   );
 }
@@ -333,7 +334,7 @@ function Unavailable({ busy, onRetry }: { busy: boolean; onRetry: () => void }) 
   );
 }
 
-function ChatInvite({ onOpen }: { onOpen: () => void }) {
+function ChatInvite({ onOpen }: { onOpen: (question?: string) => void }) {
   const { t, list } = useI18n();
   return (
     <motion.section
@@ -348,14 +349,14 @@ function ChatInvite({ onOpen }: { onOpen: () => void }) {
         <p className="mt-1 text-sm text-emerald-50/90">{t("patient.chatHint")}</p>
         <div className="mt-4 flex flex-wrap gap-2">
           {list<string>("chat.patientSuggestions").map((s) => (
-            <button key={s} type="button" onClick={onOpen} className="chip bg-white/15 py-1.5 text-white ring-1 ring-white/25 backdrop-blur transition hover:bg-white/25">
+            <button key={s} type="button" onClick={() => onOpen(s)} className="chip bg-white/15 py-1.5 text-white ring-1 ring-white/25 backdrop-blur transition hover:bg-white/25">
               {s}
             </button>
           ))}
         </div>
         <motion.button
           type="button"
-          onClick={onOpen}
+          onClick={() => onOpen()}
           whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
           className="btn mt-5 rounded-full bg-white px-6 py-3 text-emerald-700 shadow-lg hover:bg-emerald-50"
@@ -374,7 +375,7 @@ function DisclaimerBox() {
       <ShieldCheck className="mt-0.5 size-5 shrink-0 text-amber-600" />
       <div>
         <div className="font-bold">{t("patient.disclaimerTitle")}</div>
-        <p className="mt-0.5 leading-relaxed text-amber-900/90">{t("patient.disclaimer")}</p>
+        <p className="mt-0.5 leading-relaxed text-amber-900/90">{t("patient.disclaimerText")}</p>
       </div>
     </div>
   );
@@ -382,10 +383,15 @@ function DisclaimerBox() {
 
 /** The result page for people analyzing their own image: calm, plain language, never a diagnosis. */
 export function PatientResult({ initial }: { initial: AnalysisResult }) {
-  const { t, study, date, finding } = useI18n();
+  const { t, scanTitle, date, finding } = useI18n();
   const [result, setResult] = useState(initial);
   const [selected, setSelected] = useState<string | null>(initial.findings.find((f) => f.heatmap || f.boxes.length)?.name ?? null);
   const [chatOpen, setChatOpen] = useState(false);
+  const chat = useRef<ChatHandle>(null);
+  const openChat = (question?: string) => {
+    setChatOpen(true);
+    if (question) chat.current?.ask(question);
+  };
   const regenerate = useRegenerateAssessment(result, setResult);
   const assessment = result.assessment;
   const hospitals = [...result.hospitals].sort((a, b) => Number(b.partner) - Number(a.partner));
@@ -399,7 +405,7 @@ export function PatientResult({ initial }: { initial: AnalysisResult }) {
             <ArrowLeft className="size-4" /> {t("patient.back")}
           </Link>
           <div className="eyebrow mt-3">{t("patient.eyebrow")}</div>
-          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">{study(result.selection)}</h1>
+          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">{scanTitle(result.selection)}</h1>
           <div className="mt-1 text-sm text-slate-500">{date(result.acquired_at ?? result.created_at, false)}</div>
         </div>
         {chattable && (
@@ -493,8 +499,8 @@ export function PatientResult({ initial }: { initial: AnalysisResult }) {
               )}
             </>
           )}
-          {chattable && <ChatInvite onOpen={() => setChatOpen(true)} />}
-          <DisclaimerBox />
+          {chattable && <ChatInvite onOpen={openChat} />}
+          {!result.rejected && <DisclaimerBox />}
         </div>
       </div>
 
@@ -513,7 +519,7 @@ export function PatientResult({ initial }: { initial: AnalysisResult }) {
         </section>
       )}
 
-      {chattable && <ChatPanel result={result} open={chatOpen} onClose={() => setChatOpen(false)} patient />}
+      {chattable && <ChatPanel ref={chat} result={result} open={chatOpen} onClose={() => setChatOpen(false)} patient />}
     </div>
   );
 }
@@ -532,8 +538,8 @@ export function AssessmentCard({ result, onUpdate }: { result: AnalysisResult; o
     <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="card border-l-4 border-l-violet-300 p-5">
       <div className="flex flex-wrap items-center gap-2">
         <Sparkles className="size-5 text-violet-500" />
-        <h2 className="min-w-0 flex-1 font-bold text-ink">{t("assessment.title")}</h2>
-        {assessment && <UrgencyChip urgency={assessment.urgency} />}
+        <h2 className="min-w-[12rem] flex-1 font-bold text-ink">{t("assessment.title")}</h2>
+        {assessment && <UrgencyChip urgency={assessment.urgency} clinical />}
       </div>
 
       <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm ring-1 ring-slate-200/70">

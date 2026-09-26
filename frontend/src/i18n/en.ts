@@ -51,6 +51,7 @@ const en = {
     modalities: "Chest X-ray and fluorography · Fractures · Brain MRI",
     start: "Start free",
     openApp: "Open the app",
+    nav: { audiences: "For whom", problem: "Why", how: "How it works", safety: "Safety" },
     audiencesTitle: "One platform, two audiences",
     forPeople: {
       title: "For people",
@@ -146,6 +147,7 @@ const en = {
     },
   },
   urgency: { routine: "No rush", soon: "See a doctor soon", urgent: "See a doctor today" },
+  urgencyClinical: { routine: "Routine", soon: "Within days", urgent: "Same day" },
   patient: {
     eyebrow: "Your result",
     back: "My scans",
@@ -170,6 +172,7 @@ const en = {
     chatHint: "Ask anything about your result in simple words.",
     disclaimerTitle: "This is not a diagnosis",
     disclaimer: "This is not a diagnosis. AI does not give a 100% guarantee. The final conclusion is made by a doctor.",
+    disclaimerText: "The AI gives no 100% guarantee: the likelihoods are estimates. The final conclusion is made by a doctor who examines you.",
     unavailableTitle: "The explanation is not ready yet",
     unavailableText: "Your image was analyzed, but the explanation could not be written right now. Please try again in a moment.",
     retry: "Try again",
@@ -280,7 +283,6 @@ const en = {
       chest: { title: "Chest X-ray / fluorography", text: "Lungs and heart" },
       extremity: { title: "Arm or leg X-ray", text: "Bones, possible fracture" },
       brain: { title: "Brain MRI", text: "Head MRI scan" },
-      ct: { title: "CT (experimental)", text: "Read by a vision-language model only" },
     },
     run: "Analyze",
     runBatch: "Queue {n} studies",
@@ -294,6 +296,9 @@ const en = {
       models: ["Models", "Specialized models read the image"],
       explainability: ["Explainability", "Heatmaps and detections for the findings"],
       report: ["Report", "Grounded draft for physician review"],
+    },
+    patientSteps: {
+      report: ["Explanation", "The AI reads the image with your symptoms and writes a plain-language explanation"],
     },
   },
   viewer: {
@@ -313,6 +318,7 @@ const en = {
     heart: "Heart",
     analyzedRegion: "Analyzed region",
     hint: "Scroll to zoom · drag to pan · press ? for shortcuts",
+    hintBasic: "Scroll to zoom · drag to pan",
     keys: {
       zoom: "Zoom in / out",
       reset: "Reset view",
@@ -338,6 +344,7 @@ const en = {
     newAnalysis: "New analysis",
     patientStudies: "{n} studies of this patient",
     comparePriors: "Compare with prior",
+    notFound: "This case does not exist or is not available to your account.",
   },
   findings: {
     eyebrow: "AI findings",
@@ -410,7 +417,6 @@ const en = {
     report_grounded: "Every finding in the AI report comes from the image models.",
     report_removed: "Removed from the AI report because the image models did not produce them: {items}.",
     report_unavailable: "AI report unavailable ({error}). Model outputs are shown without narrative.",
-    vision_only: "No specialist model for this study type yet: only the general vision-language assessment ran (experimental).",
   },
   report: {
     title: "AI report",
@@ -457,6 +463,7 @@ const en = {
   audit: {
     title: "Audit trail",
     subtitle: "Append-only. Each entry is chained to the previous one with SHA-256.",
+    system: "System",
     intact: "Audit chain intact · {n} events",
     broken: "Audit chain broken: records were altered",
     actions: {
@@ -468,6 +475,7 @@ const en = {
       review_edit: "Edited and signed by physician",
       review_reject: "AI draft rejected by physician",
       chat_question: "Question asked in chat",
+      assessment_generated: "AI differential drafted",
     },
   },
   chat: {
@@ -482,6 +490,7 @@ const en = {
       "Draft the impression section",
       "Which findings need physician judgment?",
     ],
+    patientTitle: "Chat about your result",
     patientSubtitle: "Plain-language answers about your result.",
     patientEmpty: "Ask anything about your result. The assistant explains; it does not diagnose.",
     patientSuggestions: [
@@ -491,6 +500,8 @@ const en = {
       "Which tests do I need?",
     ],
     note: "Decision support only. Verify against the images.",
+    patientNote: "Not a diagnosis. The final conclusion is made by a doctor.",
+    patientPlaceholder: "Ask about your result…",
     thinking: "Thinking…",
     unavailable: "The assistant is unavailable right now.",
   },
@@ -502,6 +513,7 @@ const en = {
     prior: "Prior",
     current: "Current",
     interval: "Interval: {days} days",
+    intervalHours: "Interval: {n} h",
     sync: "Zoom and pan are synced",
     deltaTitle: "Findings delta",
     columns: { finding: "Finding", prior: "Prior", current: "Current", change: "Change", trend: "Trend" },
@@ -582,6 +594,10 @@ const en = {
     subscriptionFree: "Free (demo period)",
     subscriptionHint: "The monthly doctor subscription is free for now. No payment details are needed.",
     about: "System",
+    version: "Version",
+    llm: "Report and chat model",
+    vision: "Vision-language model",
+    analyzers: "Analyzers",
   },
   print: {
     title: "Radiology report",

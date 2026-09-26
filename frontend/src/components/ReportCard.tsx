@@ -26,13 +26,13 @@ export function ReportCard({ result, onUpdate }: { result: AnalysisResult; onUpd
 
   return (
     <section className="card overflow-hidden" aria-labelledby="report-title">
-      <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-emerald-50/60 to-transparent px-5 py-4">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-emerald-50/60 to-transparent px-5 py-4">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <FileText className="size-5 text-emerald-600" />
           <h2 id="report-title" className="font-bold text-ink">{t("report.title")}</h2>
           {result.status !== "reviewed" && <span className="chip bg-amber-50 text-amber-700 ring-1 ring-amber-200">{t("status.draft")}</span>}
         </div>
-        <div className="no-print flex gap-1 rounded-xl bg-white/80 p-0.5 ring-1 ring-slate-200" role="group" aria-label={t("report.regenerate")}>
+        <div className="no-print flex shrink-0 gap-1 rounded-xl bg-white/80 p-0.5 ring-1 ring-slate-200" role="group" aria-label={t("report.regenerate")}>
           {(["uz", "en", "ru"] as const).map((lang) => (
             <button
               key={lang}

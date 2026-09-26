@@ -65,7 +65,7 @@ export function AnalyzePage() {
     return (
       <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <ScanningImage preview={preview} />
-        <StepList reached={stages} />
+        <StepList reached={stages} patient={!doctor} />
       </div>
     );
   }

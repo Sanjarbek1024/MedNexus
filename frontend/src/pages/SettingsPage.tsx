@@ -19,7 +19,7 @@ function Section({ icon: Icon, title, children, hint }: { icon: typeof UserRound
 }
 
 export function SettingsPage() {
-  const { t } = useI18n();
+  const { t, analyzer } = useI18n();
   const { user, update, setLanguage } = useAuth();
   const toast = useToast();
   const [name, setName] = useState(user?.full_name ?? "");
@@ -116,11 +116,14 @@ export function SettingsPage() {
       {health && (
         <Section icon={Server} title={t("settings.about")}>
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
-            <div><dt className="eyebrow">Version</dt><dd className="mt-1 font-mono">{health.version} · {health.device} · {health.database}</dd></div>
-            <div><dt className="eyebrow">LLM</dt><dd className="mt-1 font-mono">{health.llm.model} {health.llm.configured ? "✓" : "—"}</dd></div>
+            <div><dt className="eyebrow">{t("settings.version")}</dt><dd className="mt-1 font-mono">{health.version} · {health.device} · {health.database}</dd></div>
+            <div><dt className="eyebrow">{t("settings.llm")}</dt><dd className="mt-1 font-mono break-all">{health.llm.model} {health.llm.configured ? "✓" : "—"}</dd></div>
+            {health.vision && (
+              <div><dt className="eyebrow">{t("settings.vision")}</dt><dd className="mt-1 font-mono break-all">{health.vision.model} {health.vision.configured ? "✓" : "—"}</dd></div>
+            )}
             <div className="sm:col-span-2">
-              <dt className="eyebrow">Analyzers</dt>
-              <dd className="mt-1 space-y-1">{health.analyzers.map((a) => <div key={a.id} className="text-slate-600">{a.label} <span className="font-mono text-xs text-slate-400">{Object.values(a.versions).join(" ")}</span></div>)}</dd>
+              <dt className="eyebrow">{t("settings.analyzers")}</dt>
+              <dd className="mt-1 space-y-1">{health.analyzers.map((a) => <div key={a.id} className="text-slate-600">{analyzer(a.label)} <span className="font-mono text-xs text-slate-400">{Object.values(a.versions).join(" ")}</span></div>)}</dd>
             </div>
           </dl>
         </Section>

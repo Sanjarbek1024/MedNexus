@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Bone, Brain, Check, Layers, Stethoscope, type LucideIcon } from "lucide-react";
+import { Bone, Brain, Check, Stethoscope, type LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { useI18n } from "../i18n";
@@ -24,14 +24,13 @@ export interface StudyState {
 
 export const SYMPTOMS_MAX = 2000;
 
-interface Preset { id: string; icon: LucideIcon; modality: string; region: string; view: string; experimental?: boolean }
+interface Preset { id: string; icon: LucideIcon; modality: string; region: string; view: string }
 
 /** Simple study choices for people analyzing their own image. */
 const PRESETS: Preset[] = [
   { id: "chest", icon: Stethoscope, modality: "xray", region: "chest", view: "PA" },
   { id: "extremity", icon: Bone, modality: "xray", region: "extremity", view: "PA" },
   { id: "brain", icon: Brain, modality: "mri", region: "head", view: "Axial" },
-  { id: "ct", icon: Layers, modality: "ct", region: "chest", view: "Axial", experimental: true },
 ];
 
 /** The supported study a preset maps to, or null when the backend cannot analyze it yet. */
@@ -85,7 +84,7 @@ export function useStudyForm({ loadPatients = true }: { loadPatients?: boolean }
   };
 
   const presets = capabilities
-    ? PRESETS.map((preset) => ({ ...preset, target: presetTarget(capabilities, preset) })).filter((preset) => !preset.experimental || preset.target)
+    ? PRESETS.map((preset) => ({ ...preset, target: presetTarget(capabilities, preset) }))
     : [];
   const preset = presets.find((p) => p.target && p.target.modality === state.modality && p.target.region === state.region)?.id ?? null;
 
@@ -108,7 +107,7 @@ export function useStudyForm({ loadPatients = true }: { loadPatients?: boolean }
 export type StudyForm = ReturnType<typeof useStudyForm>;
 
 export function StudyFields({ form, showDate = true }: { form: StudyForm; showDate?: boolean }) {
-  const { t, taxonomy } = useI18n();
+  const { t, taxonomy, analyzer } = useI18n();
   const { capabilities, modality, region, state, update } = form;
 
   if (!capabilities || !modality || !region) {
@@ -122,7 +121,7 @@ export function StudyFields({ form, showDate = true }: { form: StudyForm; showDa
       <StudySelect label={t("analyze.modality")} value={state.modality} options={localized(capabilities.modalities)} onChange={form.chooseModality} />
       <StudySelect label={t("analyze.region")} value={state.region} options={localized(modality.regions)} onChange={form.chooseRegion} />
       <StudySelect label={t("analyze.view")} value={state.view} options={localized(region.views)} onChange={(view) => update({ view })} />
-      <div className={`grid gap-3 ${showDate ? "sm:grid-cols-2" : ""}`}>
+      <div className={`grid gap-3 ${showDate ? "sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2" : ""}`}>
         <label className="block">
           <span className="eyebrow pl-1">{t("analyze.patient")}</span>
           <select
@@ -166,7 +165,7 @@ export function StudyFields({ form, showDate = true }: { form: StudyForm; showDa
           <div className="eyebrow text-emerald-700/70">{t("analyze.pipeline")}</div>
           <ul className="mt-2 space-y-1 text-sm text-slate-600">
             {form.view.analyzers.map((name) => (
-              <li key={name} className="flex items-center gap-2"><span className="size-1.5 rounded-full bg-emerald-400" /> {name}</li>
+              <li key={name} className="flex items-center gap-2"><span className="size-1.5 shrink-0 rounded-full bg-emerald-400" /> {analyzer(name)}</li>
             ))}
           </ul>
         </div>
@@ -227,11 +226,11 @@ export function SymptomFields({ form }: { form: StudyForm }) {
 export function StudyPresets({ form }: { form: StudyForm }) {
   const { t } = useI18n();
   if (!form.capabilities) {
-    return <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-20" />)}</div>;
+    return <div className="grid grid-cols-1 gap-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-20" />)}</div>;
   }
   return (
-    <div role="radiogroup" aria-label={t("analyze.studyType")} className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-      {form.presets.map(({ id, icon: Icon, target, experimental }) => {
+    <div role="radiogroup" aria-label={t("analyze.studyType")} className="grid grid-cols-1 gap-2">
+      {form.presets.map(({ id, icon: Icon, target }) => {
         const active = form.preset === id;
         return (
           <button
@@ -253,7 +252,6 @@ export function StudyPresets({ form }: { form: StudyForm }) {
               <span className="mt-0.5 block text-xs text-slate-500">
                 {target ? t(`analyze.presets.${id}.text`) : t("analyze.presetUnavailable")}
               </span>
-              {experimental && <span className="chip mt-1.5 bg-violet-50 text-[10px] text-violet-700 ring-1 ring-violet-200">beta</span>}
             </span>
             {active && <Check className="absolute top-3 right-3 size-4 text-emerald-600" />}
           </button>

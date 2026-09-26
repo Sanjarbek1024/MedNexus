@@ -108,7 +108,7 @@ export function ComparePage({ query }: { query: URLSearchParams }) {
           ))}
           {comparison && (
             <div className="ml-auto flex flex-wrap items-center gap-2 text-sm">
-              <span className="chip bg-emerald-50 py-1.5 text-emerald-700 ring-1 ring-emerald-200"><CalendarRange className="size-4" /> {t("compare.interval", { days: Math.round(comparison.interval_days) })}</span>
+              <span className="chip bg-emerald-50 py-1.5 text-emerald-700 ring-1 ring-emerald-200"><CalendarRange className="size-4" /> {comparison.interval_days >= 1 ? t("compare.interval", { days: Math.round(comparison.interval_days) }) : t("compare.intervalHours", { n: Math.max(1, Math.round(comparison.interval_days * 24)) })}</span>
               <span className="chip bg-slate-100 py-1.5 text-slate-600"><Link2 className="size-4" /> {t("compare.sync")}</span>
             </div>
           )}

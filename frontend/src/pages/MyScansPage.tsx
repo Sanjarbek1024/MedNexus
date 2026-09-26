@@ -18,7 +18,7 @@ const STATUS_TONE: Record<CaseStatus, string> = {
 };
 
 function ScanCard({ scan, index }: { scan: CaseSummary; index: number }) {
-  const { t, study, date, finding } = useI18n();
+  const { t, scanTitle, date, finding } = useI18n();
   const busy = scan.status === "queued" || scan.status === "analyzing";
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index, 8) * 0.04 }}>
@@ -41,8 +41,8 @@ function ScanCard({ scan, index }: { scan: CaseSummary; index: number }) {
         <div className="flex flex-1 flex-col gap-2 p-4">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <div className="truncate font-bold text-ink">{study(scan)}</div>
-              <div className="text-xs text-slate-500">{date(scan.acquired_at ?? scan.created_at, false)}</div>
+              <div className="line-clamp-2 leading-snug font-bold text-ink">{scanTitle(scan)}</div>
+              <div className="mt-0.5 text-xs text-slate-500">{date(scan.acquired_at ?? scan.created_at, false)}</div>
             </div>
             <ChevronRight className="mt-0.5 size-4 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-emerald-500" />
           </div>
