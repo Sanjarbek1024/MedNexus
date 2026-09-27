@@ -296,7 +296,8 @@ def seed_studies(
     for number, study in enumerate(studies, start=1):
         if number > 1 and pause_s:
             time.sleep(pause_s)
-        if study.sample and not (SAMPLES_DIR / study.sample).exists():
+        source = sample_path(study.sample) if study.sample else None
+        if study.sample and source is None:
             print(f"  [{number:2}/{len(studies)}] {study.sample:34} skipped: sample not downloaded")
             continue
         created = NOW - study.ago
@@ -307,7 +308,7 @@ def seed_studies(
                 patient = resolve_patient(session, owner, None, patient_ids.get(study.patient_of))
                 case = service.create_clinical_case(session, owner, patient, owner.language, context)
             else:
-                upload = uploads.sanitize((SAMPLES_DIR / study.sample).read_bytes())
+                upload = uploads.sanitize(source.read_bytes())
                 image = decode_upload(upload.data, upload.sha256)
                 selection = Selection(modality=study.modality, region=study.region, view=study.view, language=owner.language)
                 patient = resolve_patient(session, owner, upload, patient_ids.get(study.patient_of))
@@ -384,12 +385,24 @@ def summarize(settings: Settings, service: AnalysisService, follow_up_patient: i
         print(f"  {account.email:26} {account.full_name:22} {account.role}")
 
 
-def add_sample_cases(settings: Settings) -> None:
-    """Analyze the six sample cases for the demo doctor in an existing database (the server may keep running)."""
+def sample_path(name: str) -> Path | None:
+    """A sample image from samples/ or, failing that, the copy the web app ships (public/samples)."""
+    for folder in (SAMPLES_DIR, SAMPLE_CASES.parent):
+        if (folder / name).is_file():
+            return folder / name
+    return None
+
+
+def add_sample_cases(settings: Settings, if_empty: bool = False) -> None:
+    """Analyze the six sample cases for the demo doctor (created if missing). The server may keep running."""
     with Session(get_engine()) as session:
+        if if_empty and session.exec(select(Case.id)).first() is not None:
+            print("Cases already exist; the demo data is not added again.")
+            return
         doctor = session.exec(select(User).where(User.email == ACCOUNTS["doctor"].email)).first()
-    if doctor is None:
-        sys.exit("The demo doctor account does not exist: run this script without --samples first.")
+        if doctor is None:
+            create_accounts(session)
+            doctor = session.exec(select(User).where(User.email == ACCOUNTS["doctor"].email)).one()
     studies = sample_case_studies()
     print("Loading models...")
     service = build_service(settings)
@@ -406,8 +419,9 @@ def main() -> None:
     )
     parser.add_argument(
         "--samples", action="store_true",
-        help="only add the six sample cases (frontend/public/samples/cases.json) to an existing database",
+        help="only add the demo doctor and the six sample cases (frontend/public/samples/cases.json)",
     )
+    parser.add_argument("--if-empty", action="store_true", help="with --samples: do nothing if cases exist")
     args = parser.parse_args()
     logging.getLogger("httpx").setLevel(logging.WARNING)  # one line per LLM request otherwise
     settings = get_settings()
@@ -415,7 +429,7 @@ def main() -> None:
         reset(settings)
     run_migrations()
     if args.samples:
-        add_sample_cases(settings)
+        add_sample_cases(settings, if_empty=args.if_empty)
         return
 
     with Session(get_engine()) as session:
@@ -424,7 +438,7 @@ def main() -> None:
             print("The demo data is already present (the demo accounts exist).")
             print("Use --reset to start over (local SQLite database only).")
             return
-    missing = sorted({s.sample for s in STUDIES if s.sample and not s.optional and not (SAMPLES_DIR / s.sample).exists()})
+    missing = sorted({s.sample for s in STUDIES if s.sample and not s.optional and sample_path(s.sample) is None})
     if missing:
         sys.exit(f"Missing sample images ({', '.join(missing)}): run scripts/download_samples.py first.")
 

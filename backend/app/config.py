@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     registry_path: Path = BACKEND_DIR / "analyzers.yaml"
     # Model weights live inside the project (backend/weights), so the folder deploys as one unit.
     weights_dir: Path = BACKEND_DIR / "weights"
+    # Built web app (frontend/dist). When set, the API also serves it: one process, one port.
+    static_dir: Path | None = None
     data_dir: Path = BACKEND_DIR / "data"
     database_url: str | None = None  # default: SQLite file in data_dir
     device: str = "auto"

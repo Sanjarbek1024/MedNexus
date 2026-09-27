@@ -45,6 +45,23 @@ MedNexus is a physician tool (role *Doctor*, monthly subscription, free during t
 
 **Platform.** Uzbek (default), English and Russian UI and reports; a dashboard with measured turnaround and agreement; a public landing page.
 
+## Deploy as one container
+
+The root `Dockerfile` builds the web app and serves it from the API, so a hosting platform runs a
+single process on `$PORT` (default 8000). On the first start with an empty database it adds the demo
+doctor and the six sample cases.
+
+```bash
+docker build -t mednexus .
+docker run -p 8000:8000 -e GROQ_API_KEY=... -e SECRET_KEY=... -e PSEUDONYM_KEY=... mednexus
+```
+
+- Needs about 2 GB of RAM (PyTorch and six models); with less, the process is killed and the platform shows HTTP 502.
+- `backend/weights/` is copied into the image when present; otherwise about 1 GB of weights downloads during the build.
+- Over plain HTTP (no TLS) set `COOKIE_SECURE=false`, or sign-in cookies are not stored.
+- Without Docker: `cd frontend && npm ci && npm run build`, then run
+  `STATIC_DIR=../frontend/dist uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port $PORT`.
+
 ## Quick start
 
 With Docker:
